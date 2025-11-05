@@ -1,0 +1,26 @@
+#----------------------
+# directory path
+#----------------------
+data_dir: "data/processed"
+output_dir: "output"
+
+#----------------------
+# Group parameters
+#----------------------
+group_info:
+  num_of_group: 2
+  name_of_group:
+    - "acetate"
+    - "etoh"
+    - "glyoxylate"
+    - "saline"
+
+n_per_group: 3
+
+num_serial: 2
+
+roi_info:
+  num_of_roi: 1
+  name_of_roi:
+    - "cortex"
+

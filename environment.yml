@@ -1,0 +1,13 @@
+name: mass-imaging-analysis
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+
+dependencies:
+  - python=3.11
+  - pyimzml     # conda-forge에서 설치
+  - pandas      # conda-forge에서 설치
+  - numpy       # (pyimzml이 자동으로 설치하지만, 명시하는 것이 좋음)
+  - lxml        # (pyimzml이 자동으로 설치)
+  - pip         # pip도 conda로 관리
