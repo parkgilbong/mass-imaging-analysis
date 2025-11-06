@@ -12,7 +12,7 @@ except ImportError:
     print("aggregate.py와 parsing.py가 동일한 디렉토리에 있는지 확인하세요.")
     exit(1)
 
-CONFIG_FILE = './config/config.yaml'
+CONFIG_FILE = 'config/config.yaml'
 
 def main():
     """
