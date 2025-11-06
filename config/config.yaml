@@ -1,8 +1,9 @@
 #----------------------
 # directory path
 #----------------------
-data_dir: "./data/processed"
-output_dir: "./output"
+# 경로는 main.ipynb가 실행되는 프로젝트 root 기준입니다.
+data_dir: "data/processed"
+output_dir: "output"
 
 #----------------------
 # Group parameters
@@ -24,7 +25,7 @@ roi_info:
     - "cortex"
 
 #----------------------
-# Binning parameters (NEW SECTION)
+# Binning parameters
 #----------------------
 binning_settings:
   # 'mode'는 'file' 또는 'direct' 중 하나를 선택합니다.
@@ -34,7 +35,7 @@ binning_settings:
   mode: "file" #또는 "direct"
 
   # --- Mode 1: 'file' 설정 ---
-  file_path: "./data/processed/Mass ranges of molecules.csv"
+  file_path: "config/Mass ranges of molecules.csv"
 
   # --- Mode 2: 'direct' 설정 (현재 'file' 모드가 활성화되어 사용되지 않음) ---
   # 'file_path' 대신 이 방식을 사용하려면 mode: "direct"로 변경하세요.
