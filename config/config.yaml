@@ -8,7 +8,7 @@ output_dir: "output"
 # Group parameters
 #----------------------
 group_info:
-  num_of_group: 2
+  num_of_group: 4
   name_of_group:
     - "acetate"
     - "etoh"
