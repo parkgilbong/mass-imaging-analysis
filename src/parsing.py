@@ -83,7 +83,7 @@ def load_master_bins(binning_config):
         return None, None
 
 
-def process_imzml_with_bins(imzml_filepath, master_bins, bin_names):
+def process_imzml_with_bins(imzml_filepath, master_bins, bin_names, output_dir="."):
     """
     .imzML 파일을 파싱하여, 미리 정의된 'master_bins'를 기준으로
     intensity 매트릭스와 m/z 채널별 평균 intensity를 CSV 파일로 저장합니다.
