@@ -92,6 +92,7 @@ def process_imzml_with_bins(imzml_filepath, master_bins, bin_names):
         imzml_filepath (str): 분석할 .imzML 파일의 경로.
         master_bins (list): (min_mz, max_mz) 튜플의 리스트.
         bin_names (list): CSV 컬럼 헤더로 사용할 m/z 빈 이름 리스트.
+        output_dir (str): CSV 결과 파일을 저장할 디렉토리 경로.
     """
     try:
         # 1. ImzMLParser 객체 생성
@@ -145,15 +146,16 @@ def process_imzml_with_bins(imzml_filepath, master_bins, bin_names):
         df_full = pd.concat([df_coords, df_intensities], axis=1)
 
         # 4. 전체 intensity 매트릭스를 CSV 파일로 저장
-        base_filename = os.path.splitext(imzml_filepath)[0]
-        output_intensities_csv = f"{base_filename}_binned_spectra.csv"
+        base_filename = os.path.splitext(os.path.basename(imzml_filepath))[0]
+        # output_dir을 경로에 포함
+        output_intensities_csv = os.path.join(output_dir, f"{base_filename}_binned_spectra.csv")
         df_full.to_csv(output_intensities_csv, index=False, float_format='%.4f')
         print(f"\nBinned Intensity 매트릭스 저장 완료: {output_intensities_csv}")
         print(f"  - 형태: {df_full.shape}")
 
         # 5. m/z 채널별 평균 intensity 계산 및 CSV 파일로 저장
         mean_intensities = df_intensities.mean().to_frame().T
-        output_mean_csv = f"{base_filename}_mean_intensities.csv"
+        output_mean_csv = os.path.join(output_dir, f"{base_filename}_mean_intensities.csv")
         mean_intensities.to_csv(output_mean_csv, index=False, float_format='%.4f')
         print(f"평균 Intensity 저장 완료: {output_mean_csv}")
         print(f"  - 형태: {mean_intensities.shape}")
@@ -168,34 +170,34 @@ def process_imzml_with_bins(imzml_filepath, master_bins, bin_names):
         print(f"데이터 파싱 또는 처리 중 오류 발생: {e}")
 
 
-if __name__ == '__main__':
-    # --- 실행 ---
+# if __name__ == '__main__':
+#     # --- 실행 ---
     
-    CONFIG_FILE = 'config.yaml'
+#     CONFIG_FILE = 'config.yaml'
     
-    # 1. 설정 파일 로드
-    config = load_yaml(CONFIG_FILE)
-    if config is None:
-        exit(1)
+#     # 1. 설정 파일 로드
+#     config = load_yaml(CONFIG_FILE)
+#     if config is None:
+#         exit(1)
 
-    # 2. 설정 파일에서 m/z 빈(bins) 정보 로드
-    if 'binning_settings' not in config:
-        print(f"오류: '{CONFIG_FILE}'에 'binning_settings' 섹션이 없습니다.")
-        exit(1)
+#     # 2. 설정 파일에서 m/z 빈(bins) 정보 로드
+#     if 'binning_settings' not in config:
+#         print(f"오류: '{CONFIG_FILE}'에 'binning_settings' 섹션이 없습니다.")
+#         exit(1)
         
-    master_bins, bin_names = load_master_bins(config['binning_settings'])
+#     master_bins, bin_names = load_master_bins(config['binning_settings'])
     
-    if master_bins is None or bin_names is None:
-        print("m/z 빈 로드에 실패하여 처리를 중단합니다.")
-        exit(1)
+#     if master_bins is None or bin_names is None:
+#         print("m/z 빈 로드에 실패하여 처리를 중단합니다.")
+#         exit(1)
 
-    # 3. 분석할 .imzML 파일 경로 지정 (예시)
-    # 실제 사용 시 이 부분을 config 파일에서 읽어오거나 인자로 받도록 수정할 수 있습니다.
-    imzml_file = 'A_1-1_cortex-total_ion_count.imzML'
+#     # 3. 분석할 .imzML 파일 경로 지정 (예시)
+#     # 실제 사용 시 이 부분을 config 파일에서 읽어오거나 인자로 받도록 수정할 수 있습니다.
+#     imzml_file = 'A_1-1_cortex-total_ion_count.imzML'
 
-    if not os.path.exists(imzml_file):
-        print(f"입력 파일 '{imzml_file}'을(를) 찾을 수 없습니다.")
-        print("분석할 .imzML 파일의 경로를 'imzml_file' 변수에 올바르게 지정해주세요.")
-    else:
-        # 4. 처리 실행
-        process_imzml_with_bins(imzml_file, master_bins, bin_names)
+#     if not os.path.exists(imzml_file):
+#         print(f"입력 파일 '{imzml_file}'을(를) 찾을 수 없습니다.")
+#         print("분석할 .imzML 파일의 경로를 'imzml_file' 변수에 올바르게 지정해주세요.")
+#     else:
+#         # 4. 처리 실행
+#         process_imzml_with_bins(imzml_file, master_bins, bin_names)
