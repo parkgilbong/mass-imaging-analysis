@@ -1,8 +1,8 @@
 #----------------------
 # directory path
 #----------------------
-data_dir: "data/processed"
-output_dir: "output"
+data_dir: "./data/processed"
+output_dir: "./output"
 
 #----------------------
 # Group parameters
@@ -31,10 +31,10 @@ binning_settings:
   # 'file': 'file_path'에 지정된 .csv 파일에서 m/z 범위를 읽어옵니다.
   # 'direct': 'direct_bins'에 직접 정의된 m/z 범위를 사용합니다.
   
-  mode: "file"
+  mode: "file" #또는 "direct"
 
   # --- Mode 1: 'file' 설정 ---
-  file_path: "data/processed/Mass ranges of molecules.csv"
+  file_path: "./data/processed/Mass ranges of molecules.csv"
 
   # --- Mode 2: 'direct' 설정 (현재 'file' 모드가 활성화되어 사용되지 않음) ---
   # 'file_path' 대신 이 방식을 사용하려면 mode: "direct"로 변경하세요.
