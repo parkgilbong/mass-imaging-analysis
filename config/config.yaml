@@ -8,7 +8,7 @@ output_dir: "output"
 # Group parameters
 #----------------------
 group_info:
-  num_of_group: 4
+  num_of_group: 2
   name_of_group:
     - "acetate"
     - "etoh"
@@ -16,7 +16,6 @@ group_info:
     - "saline"
 
 n_per_group: 3
-
 num_serial: 2
 
 roi_info:
@@ -24,3 +23,40 @@ roi_info:
   name_of_roi:
     - "cortex"
 
+#----------------------
+# Binning parameters (NEW SECTION)
+#----------------------
+binning_settings:
+  # 'mode'는 'file' 또는 'direct' 중 하나를 선택합니다.
+  # 'file': 'file_path'에 지정된 .csv 파일에서 m/z 범위를 읽어옵니다.
+  # 'direct': 'direct_bins'에 직접 정의된 m/z 범위를 사용합니다.
+  
+  mode: "file"
+
+  # --- Mode 1: 'file' 설정 ---
+  file_path: "data/processed/Mass ranges of molecules.csv"
+
+  # --- Mode 2: 'direct' 설정 (현재 'file' 모드가 활성화되어 사용되지 않음) ---
+  # 'file_path' 대신 이 방식을 사용하려면 mode: "direct"로 변경하세요.
+  direct_bins:
+    - mz: 72.9926
+      width: 0.003
+      name: "Bin 1 (72)"
+    - mz: 102.055
+      width: 0.003
+      name: "Bin 2 (102)"
+    - mz: 130.9971
+      width: 0.00478
+      name: "Bin 3 (130)"
+    - mz: 132.0291
+      width: 0.00299
+      name: "Bin 4 (132)"
+    - mz: 133.013
+      width: 0.00299
+      name: "Bin 5 (133)"
+    - mz: 145.0601
+      width: 0.00347
+      name: "Bin 6 (145)" 
+    - mz: 146.0445
+      width: 0.00355
+      name: "Bin 7 (146)"
