@@ -26,5 +26,7 @@ dependencies:
   
   # Notebook
   - jupyterlab  # main.ipynb 실행에 필수
+  - notebook
 
-  - pip         # pip도 conda로 관리
+  # pip도 conda로 관리
+  - pip         
