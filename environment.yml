@@ -13,6 +13,7 @@ dependencies:
   - numpy       # (pyimzml이 자동으로 설치하지만, 명시하는 것이 좋음)
   - lxml        # (pyimzml이 자동으로 설치)
   - pyyaml      # <--- (추가) config.yaml 파싱에 필수
+  - numpy
   
   # Statistics
   - scipy       # 통계 분석용

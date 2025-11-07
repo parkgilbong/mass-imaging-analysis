@@ -1,44 +1,55 @@
 import os
 import itertools
 import yaml
-# parsing.py에서 필요한 함수들을 import합니다.
+
+# 'src' 폴더에 함께 있는 parsing.py에서 필요한 함수들을 import합니다.
 try:
+    # 이 스크립트가 'src' 외부(예: main.ipynb)에서 실행될 것을 가정
     import parsing
 except ImportError:
-    print("오류: 'parsing.py' 파일을 찾을 수 없습니다.")
-    print("main.py와 parsing.py가 동일한 디렉토리에 있는지 확인하세요.")
-    exit(1)
-
-CONFIG_FILE = 'config/config.yaml'
+    # 이 스크립트가 'src' 내부에서 직접 실행될 경우
+    try:
+        from . import parsing
+    except ImportError:
+        print("오류: 'parsing.py' 파일을 찾을 수 없습니다.")
+        # sys.exit(1) 대신 return을 사용 (Jupyter 호환)
+        # main() 함수가 아니므로 이 파일 임포트 시 오류 발생 가능
+        pass 
 
 def generate_expected_files(config):
     """
-    config.yaml의 정보를 바탕으로 예상되는 모든 .imzML 파일의
-    전체 경로 리스트를 생성합니다.
+    (수정됨)
+    config.yaml의 유연한 '딕셔너리 리스트' 구조를 바탕으로
+    예상되는 모든 .imzML 파일의 전체 경로 리스트를 생성합니다.
     """
     try:
         data_dir = config['data_dir']
-        groups = config['group_info']['name_of_group']
-        n_count = config['n_per_group']
-        s_count = config['num_serial']
-        rois = config['roi_info']['name_of_roi']
         
-        # n과 s는 1부터 시작하는 숫자입니다.
-        n_range = range(1, n_count + 1)
-        s_range = range(1, s_count + 1)
-        
-        # 모든 조합 생성 (itertools.product 사용)
-        all_combinations = itertools.product(groups, n_range, s_range, rois)
+        # (수정) group_info와 roi_info를 리스트로 직접 가져옴
+        groups_info_list = config['group_info']
+        rois_info_list = config['roi_info']
         
         expected_files = []
-        # 파일명 템플릿: "{name_of_group} {n}-{s} {name_of_roi}-total ion current.imzML"
-        # 참고: config.yaml의 예시(A_1-1...)와 파일명 템플릿이 다를 경우,
-        # 이 템플릿 문자열을 실제 파일명 규칙에 맞게 수정해야 합니다.
-        for (group, n, s, roi) in all_combinations:
-            # 사용자님이 명시한 파일 이름 템플릿
-            file_name = f"{group} {n}-{s} {roi}-total ion count.imzML"
-            full_path = os.path.join(data_dir, file_name)
-            expected_files.append(full_path)
+        
+        # (수정) config의 'group_info' 리스트를 순회
+        for group_dict in groups_info_list:
+            group_name = group_dict['name']
+            n_count = group_dict['n_per_group']
+            s_count = group_dict['num_serial']
+            
+            n_range = range(1, n_count + 1)
+            s_range = range(1, s_count + 1)
+            
+            # (수정) config의 'roi_info' 리스트를 순회
+            for roi_dict in rois_info_list:
+                roi_name = roi_dict['name']
+                
+                # n과 s의 조합 생성
+                for n, s in itertools.product(n_range, s_range):
+                    # 파일명 템플릿: "{name_of_group} {n}-{s} {name_of_roi}-total ion current.imzML"
+                    file_name = f"{group_name} {n}-{s} {roi_name}-total ion count.imzML"
+                    full_path = os.path.join(data_dir, file_name)
+                    expected_files.append(full_path)
             
         return expected_files
 
@@ -51,6 +62,7 @@ def generate_expected_files(config):
 
 def validate_files(file_list):
     """
+    (변경 없음)
     생성된 파일 목록이 실제 디스크에 모두 존재하는지 유효성 검사를 수행합니다.
     """
     print(f"\n--- 파일 유효성 검사 (총 {len(file_list)}개) ---")
@@ -70,36 +82,38 @@ def validate_files(file_list):
     print(f"성공: 모든 예상 파일 {len(file_list)}개를 data_dir에서 확인했습니다.")
     return True
 
-def main():
+def main(config_path='config/config.yaml'):
     """
-    메인 파이프라인 실행 함수
+    (수정됨) 메인 파이프라인 실행 함수
+    config_path를 인자로 받아 해당 설정으로 파싱을 수행합니다.
     """
     print("--- 1. 설정 파일 로드 ---")
-    config = parsing.load_yaml(CONFIG_FILE)
+    # (수정) 하드코딩된 경로 대신 인자로 받은 config_path 사용
+    config = parsing.load_yaml(config_path)
     if config is None:
-        return
+        return # (Jupyter 호환)
 
     print("\n--- 2. m/z 빈(Bin) 정보 로드 ---")
     if 'binning_settings' not in config:
-        print(f"오류: '{CONFIG_FILE}'에 'binning_settings' 섹션이 없습니다.")
-        return
+        print(f"오류: '{config_path}'에 'binning_settings' 섹션이 없습니다.")
+        return # (Jupyter 호환)
         
     master_bins, bin_names = parsing.load_master_bins(config['binning_settings'])
     
     if master_bins is None or bin_names is None:
         print("m/z 빈 로드에 실패하여 처리를 중단합니다.")
-        return
+        return # (Jupyter 호환)
 
     print("\n--- 3. 처리할 파일 목록 생성 ---")
     file_list = generate_expected_files(config)
     if file_list is None:
         print("파일 목록 생성에 실패하여 처리를 중단합니다.")
-        return
+        return # (Jupyter 호환)
 
     # 4. 파일 유효성 검사
     if not validate_files(file_list):
         print("\n처리를 중단합니다. 파일 경로와 config.yaml 설정을 확인하세요.")
-        return
+        return # (Jupyter 호환)
         
     # 5. 모든 파일 순차 처리
     print(f"\n--- 4. 총 {len(file_list)}개 파일 처리 시작 ---")
@@ -117,4 +131,5 @@ def main():
     print(f"결과물은 '{output_dir}' 폴더에 저장되었습니다.")
 
 if __name__ == '__main__':
-    main()
+    # 스크립트를 직접 실행할 경우 기본 config 파일을 사용
+    main(config_path='config/config.yaml')
