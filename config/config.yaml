@@ -6,23 +6,32 @@ data_dir: "data/4_groups"
 output_dir: "output/4_groups"
 
 #----------------------
-# Group parameters
+# Group parameters 
 #----------------------
-group_info:
-  num_of_group: 4
-  name_of_group:
-    - "saline"
-    - "glyoxylate"
-    - "acetate"
-    - "etoh"
+group_info: # 상황에 맞게 그룹수를 늘리면 됩니다. 형식을 유지하는 것이 중요합니다. 
+  - name: "saline"
+    n_per_group: 3
+    num_serial: 2
+  - name: "glyoxylate"
+    n_per_group: 3
+    num_serial: 2
+  - name: "acetate"
+    n_per_group: 3
+    num_serial: 2
+  - name: "etoh"
+    n_per_group: 3
+    num_serial: 2
+  # 예시: 만약 'etoh' 그룹만 n=4, serial=1 이라면:
+  # - name: "etoh"
+  #   n_per_group: 4
+  #   num_serial: 1
 
-n_per_group: 3
-num_serial: 2
-
+#----------------------
+# ROI parameters
+#----------------------
 roi_info:
-  num_of_roi: 1
-  name_of_roi:
-    - "cortex"
+  - name: "cortex"
+  # - name: "hippocampus"
 
 #----------------------
 # Binning parameters
@@ -50,20 +59,20 @@ binning_settings:
       width: 0.00478
       name: "Bin 3 (130)"
     - mz: 132.0291
-      width: 0.00299
+      width: 0.003
       name: "Bin 4 (132)"
     - mz: 133.013
-      width: 0.00299
+      width: 0.003
       name: "Bin 5 (133)"
     - mz: 145.0601
-      width: 0.00347
-      name: "Bin 6 (145)" 
+      width: 0.003
+      name: "Bin 6 (145)"
     - mz: 146.0445
-      width: 0.00355
+      width: 0.003
       name: "Bin 7 (146)"
 
 #----------------------
-# Statistics settings 
+# Statistics settings
 #----------------------
 statistics_settings:
   # 'parametric' (모수) 또는 'non_parametric' (비모수) 검정 선택
@@ -72,3 +81,9 @@ statistics_settings:
   
   # 통계적 유의성 판단 기준 (p-value)
   p_value_threshold: 0.05
+
+#----------------------
+# Report settings
+#----------------------
+report_settings:
+  title: "Mass Imaging Analysis Report" # 보고서 제목
