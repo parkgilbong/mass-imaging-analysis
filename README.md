@@ -41,13 +41,15 @@ Miniconda는 Python과 conda 패키지 매니저가 포함된 경량 배포판�
 4. 설치 완료 후, **Anaconda Prompt**를 실행합니다.
 
 #### macOS
-1. 터미널을 열고 다음 명령어를 실행합니다:
+1. [Miniconda 다운로드 페이지](https://docs.conda.io/en/latest/miniconda.html)에서 macOS용 설치 프로그램을 다운로드합니다.
+   - Intel 프로세서: `Miniconda3-latest-MacOSX-x86_64.sh`
+   - Apple Silicon (M1/M2/M3): `Miniconda3-latest-MacOSX-arm64.sh`
+2. 터미널을 열고 다운로드한 파일을 실행합니다:
    ```bash
-   curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
-   bash Miniconda3-latest-MacOSX-x86_64.sh
+   bash Miniconda3-latest-MacOSX-*.sh
    ```
-2. 설치 과정에서 라이선스 동의 후 설치 경로를 확인합니다 (기본값 사용 권장).
-3. 설치 완료 후, 터미널을 재시작합니다.
+3. 설치 과정에서 라이선스 동의 후 설치 경로를 확인합니다 (기본값 사용 권장).
+4. 설치 완료 후, 터미널을 재시작합니다.
 
 #### Linux
 1. 터미널에서 다음 명령어를 실행합니다:
@@ -273,8 +275,8 @@ analysis.main()
 
 ```yaml
 # 데이터 및 출력 경로
-data_dir: "data/4_groups"          # .imzML 파일들이 있는 디렉토리
-output_dir: "output/4_groups"      # 결과 파일이 저장될 디렉토리
+data_dir: "data/4_groups"           # .imzML 파일들이 있는 디렉토리
+output_dir: "output/4_groups"       # 결과 파일이 저장될 디렉토리
 
 # 그룹 정보
 group_info:
@@ -318,7 +320,7 @@ statistics_settings:
 SCiLS Lab에서 export한 m/z bin 정보 파일입니다.
 
 **파일 형식:**
-```csv
+```
 # 주석 줄들...
 m/z;Interval Width (+/- Da);Color;Name;Intensity [Regions]
 72.9926;0.003;#b2df8a;;224.01341247559
