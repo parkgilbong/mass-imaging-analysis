@@ -2,8 +2,8 @@
 # directory path
 #----------------------
 # 경로는 main.ipynb가 실행되는 프로젝트 root 기준입니다.
-data_dir: "data/processed"
-output_dir: "output"
+data_dir: "data/4_groups"
+output_dir: "output/4_groups"
 
 #----------------------
 # Group parameters
@@ -11,10 +11,10 @@ output_dir: "output"
 group_info:
   num_of_group: 4
   name_of_group:
+    - "saline"
+    - "glyoxylate"
     - "acetate"
     - "etoh"
-    - "glyoxylate"
-    - "saline"
 
 n_per_group: 3
 num_serial: 2
@@ -61,3 +61,14 @@ binning_settings:
     - mz: 146.0445
       width: 0.00355
       name: "Bin 7 (146)"
+
+#----------------------
+# Statistics settings 
+#----------------------
+statistics_settings:
+  # 'parametric' (모수) 또는 'non_parametric' (비모수) 검정 선택
+  # n=3은 샘플 크기가 매우 작으므로 'non_parametric'을 강력히 권장합니다.
+  test_type: "non_parametric" # 'parametric' | 'non_parametric'
+  
+  # 통계적 유의성 판단 기준 (p-value)
+  p_value_threshold: 0.05

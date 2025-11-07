@@ -36,7 +36,7 @@ def generate_expected_files(config):
         # 이 템플릿 문자열을 실제 파일명 규칙에 맞게 수정해야 합니다.
         for (group, n, s, roi) in all_combinations:
             # 사용자님이 명시한 파일 이름 템플릿
-            file_name = f"{group} {n}-{s} {roi}-total ion current.imzML"
+            file_name = f"{group} {n}-{s} {roi}-total ion count.imzML"
             full_path = os.path.join(data_dir, file_name)
             expected_files.append(full_path)
             
@@ -77,29 +77,29 @@ def main():
     print("--- 1. 설정 파일 로드 ---")
     config = parsing.load_yaml(CONFIG_FILE)
     if config is None:
-        exit(1)
+        return
 
     print("\n--- 2. m/z 빈(Bin) 정보 로드 ---")
     if 'binning_settings' not in config:
         print(f"오류: '{CONFIG_FILE}'에 'binning_settings' 섹션이 없습니다.")
-        exit(1)
+        return
         
     master_bins, bin_names = parsing.load_master_bins(config['binning_settings'])
     
     if master_bins is None or bin_names is None:
         print("m/z 빈 로드에 실패하여 처리를 중단합니다.")
-        exit(1)
+        return
 
     print("\n--- 3. 처리할 파일 목록 생성 ---")
     file_list = generate_expected_files(config)
     if file_list is None:
         print("파일 목록 생성에 실패하여 처리를 중단합니다.")
-        exit(1)
+        return
 
     # 4. 파일 유효성 검사
     if not validate_files(file_list):
         print("\n처리를 중단합니다. 파일 경로와 config.yaml 설정을 확인하세요.")
-        exit(1)
+        return
         
     # 5. 모든 파일 순차 처리
     print(f"\n--- 4. 총 {len(file_list)}개 파일 처리 시작 ---")

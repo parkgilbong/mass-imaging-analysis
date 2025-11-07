@@ -23,7 +23,7 @@ def main():
     print("--- 1. 설정 파일 로드 ---")
     config = parsing.load_yaml(CONFIG_FILE)
     if config is None:
-        exit(1)
+        return
 
     try:
         # 1-1. 설정 정보 가져오기
@@ -35,7 +35,7 @@ def main():
         
     except KeyError as e:
         print(f"오류: config.yaml 파일에 필요한 키가 없습니다: {e}")
-        exit(1)
+        return
         
     print(f"'{output_dir}' 디렉토리에서 '_mean_intensities.csv' 파일들을 집계합니다.")
 
@@ -56,7 +56,7 @@ def main():
         # 3. 'num_serial' (s_range)을 기준으로 파일 검색
         for s in s_range:
             # main.py에서 생성한 파일명 템플릿과 동일해야 함
-            base_imzml_name = f"{group} {n}-{s} {roi}-total ion current"
+            base_imzml_name = f"{group} {n}-{s} {roi}-total ion count"
             mean_csv_path = os.path.join(output_dir, f"{base_imzml_name}_mean_intensities.csv")
             
             if os.path.exists(mean_csv_path):
@@ -99,7 +99,7 @@ def main():
     # 6. 최종 DataFrame 생성 및 저장
     if not all_aggregated_data:
         print("오류: 집계할 데이터가 없습니다. 'main.py'가 정상적으로 실행되었는지 확인하세요.")
-        exit(1)
+        return
         
     df_final = pd.DataFrame(all_aggregated_data)
     

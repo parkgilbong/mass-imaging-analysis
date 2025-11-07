@@ -1,3 +1,8 @@
+import warnings
+# pyimzml에서 발생하는 특정 UserWarning을 무시합니다.
+# (예: "Accession IMS:1000046 found with incorrect name...")
+warnings.filterwarnings('ignore', category=UserWarning, module='pyimzml')
+
 from pyimzml.ImzMLParser import ImzMLParser
 import numpy as np
 import pandas as pd
@@ -19,19 +24,19 @@ def load_yaml(config_path):
 def load_master_bins(binning_config):
     """
     config의 binning_settings를 기반으로 
-    마스터 m/z 빈 리스트 [(min_mz, max_mz), ...]와 
+    마스터 m/z bin 리스트 [(min_mz, max_mz), ...]와 
     컬럼 이름 리스트 [bin_name, ...]를 반환합니다.
     """
     mode = binning_config.get('mode', 'file')
     master_bins = []
     bin_names = []
     
-    print(f"m/z 빈 로드 모드: '{mode}'")
+    print(f"m/z bin load 모드: '{mode}'")
 
     try:
         if mode == 'file':
             file_path = binning_config['file_path']
-            print(f"'{file_path}' 파일에서 m/z 빈 목록을 로드합니다.")
+            print(f"'{file_path}' 파일에서 m/z bin 목록을 로드합니다.")
             
             # SCiLS에서 내보낸 'Mass ranges...' 파일 파싱
             # 주석('#')으로 시작하는 줄을 건너뛰고, 구분자는 세미콜론(;) 사용
@@ -53,7 +58,7 @@ def load_master_bins(binning_config):
                 bin_names.append(bin_name)
                 
         elif mode == 'direct':
-            print("config.yaml의 'direct_bins'에서 m/z 빈 목록을 로드합니다.")
+            print("config.yaml의 'direct_bins'에서 m/z bin 목록을 로드합니다.")
             for bin_info in binning_config['direct_bins']:
                 mz_center = bin_info['mz']
                 mz_width = bin_info['width']
@@ -69,7 +74,7 @@ def load_master_bins(binning_config):
             print(f"오류: 알 수 없는 binning_settings mode: '{mode}'")
             return None, None
 
-        print(f"총 {len(master_bins)}개의 m/z 빈을 로드했습니다.")
+        print(f"총 {len(master_bins)}개의 m/z bin을 로드했습니다.")
         return master_bins, bin_names
 
     except FileNotFoundError:
@@ -112,7 +117,7 @@ def process_imzml_with_bins(imzml_filepath, master_bins, bin_names, output_dir="
         # 2. 마스터 m/z 축(bins)에 맞게 각 스펙트럼의 intensity를 재구성합니다.
         all_aligned_intensities = []
         coordinates_list = []
-        print("1단계: 각 스펙트럼을 마스터 m/z 빈에 정렬하는 중...")
+        print("1단계: 각 스펙트럼을 마스터 m/z bin에 정렬하는 중...")
 
         for i, (x, y, z) in enumerate(p.coordinates):
             mzs, intensities = p.getspectrum(i)

@@ -1,13 +1,28 @@
+# "conda env create -f environment-recommended.yaml" 명령어로 사용하세요.
+# (Jupyter, PyYAML, Plotting 라이브러리 추가됨)
 name: mass-imaging-analysis
 channels:
-  - conda-forge
-  - bioconda
+  - conda-forge # pyimzml 및 과학 패키지를 위한 최고의 채널
   - defaults
-
 dependencies:
-  - python=3.11
+  - python=3.11 # 기본 파이썬 버전 지정
+  
+  # Core parsing
   - pyimzml     # conda-forge에서 설치
   - pandas      # conda-forge에서 설치
   - numpy       # (pyimzml이 자동으로 설치하지만, 명시하는 것이 좋음)
   - lxml        # (pyimzml이 자동으로 설치)
+  - pyyaml      # <--- (추가) config.yaml 파싱에 필수
+  
+  # Statistics
+  - scipy       # 통계 분석용
+  - statsmodels # 통계 분석용
+  
+  # Plotting
+  - seaborn     
+  - matplotlib  
+  
+  # Notebook
+  - jupyterlab  # main.ipynb 실행에 필수
+
   - pip         # pip도 conda로 관리
