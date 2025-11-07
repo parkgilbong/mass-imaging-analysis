@@ -3,6 +3,7 @@
 name: mass-imaging-analysis
 channels:
   - conda-forge # pyimzml 및 과학 패키지를 위한 최고의 채널
+  - bioconda
   - defaults
 dependencies:
   - python=3.11 # 기본 파이썬 버전 지정
