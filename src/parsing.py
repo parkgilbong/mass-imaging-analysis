@@ -101,7 +101,7 @@ def process_imzml_with_bins(imzml_filepath, master_bins, bin_names, output_dir="
     """
     try:
         # 1. ImzMLParser 객체 생성
-        p = ImzMLParser(imzml_filepath, parse_lib='lxml')
+        p = ImzMLParser(imzml_filepath, parse_lib='xml')
         print(f"\n파일 열기 성공: {imzml_filepath}")
 
         num_spectra = len(p.coordinates)
