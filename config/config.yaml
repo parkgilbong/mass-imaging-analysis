@@ -77,7 +77,7 @@ binning_settings:
 statistics_settings:
   # 'parametric' (모수) 또는 'non_parametric' (비모수) 검정 선택
   # n=3은 샘플 크기가 매우 작으므로 'non_parametric'을 강력히 권장합니다.
-  test_type: "non_parametric" # 'parametric' | 'non_parametric'
+  test_type: "parametric" # 'parametric' | 'non_parametric'
   
   # 통계적 유의성 판단 기준 (p-value)
   p_value_threshold: 0.05
