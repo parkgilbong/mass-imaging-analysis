@@ -107,21 +107,26 @@ conda --version
 1. **데이터 디렉토리 구조:**
    ```
    mass-imaging-analysis/
-   ├── config/
-   │   ├── config.yaml
-   │   └── Mass ranges of molecules.csv
-   ├── data/
-   │   └── 4_groups/
-   │       ├── saline 1-1 cortex-total ion count.imzML
-   │       ├── saline 1-1 cortex-total ion count.ibd
-   │       ├── saline 1-2 cortex-total ion count.imzML
-   │       ├── saline 1-2 cortex-total ion count.ibd
-   │       └── ... (기타 .imzML 및 .ibd 파일들)
-   ├── output/
-   │   └── 4_groups/
-   ├── src/
-   ├── main.ipynb
-   └── environment.yml
+    ├── config/
+    │   ├── config.yaml
+    │   └── Mass ranges of molecules.csv
+    ├── data/
+    │   └── 4_groups/
+    │       ├── saline 1-1 cortex-total ion count.imzML
+    │       ├── saline 1-1 cortex-total ion count.ibd
+    │       └── ...
+    ├── logs/                  <-- (자동 생성) 실행 로그 저장 폴더
+    ├── output/
+    │   └── 4_groups/          <-- 결과 파일 저장 폴더
+    ├── src/
+    │   ├── utils/
+    │   │   └── logging_utils.py
+    │   ├── main.py
+    │   ├── aggregate.py
+    │   ├── analysis.py
+    │   └── parsing.py
+    ├── main.ipynb
+    └── environment.yml
    ```
 
 2. **설정 파일 수정:**
@@ -166,6 +171,12 @@ conda --version
 4. **실행 시간:**
    - 파일 수와 크기에 따라 다르지만, 전체 파이프라인 실행에 수 분에서 수십 분이 소요될 수 있습니다.
 
+### 로그 확인 
+실행 중 발생하는 모든 메시지와 오류는 콘솔뿐만 아니라 파일로도 기록됩니다.
+
+* 위치: logs/ 디렉토리
+* 파일명: YYYY-MM-DD_analysis.log (예: 2024-05-21_analysis.log)
+* 내용: 실행 시간, 처리 중인 파일, 경고(Warning) 및 오류(Error) 상세 내역
 ---
 
 ## 파이프라인 구조
