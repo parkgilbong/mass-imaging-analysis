@@ -2,7 +2,7 @@
 # directory path
 #----------------------
 # 경로는 main.ipynb가 실행되는 프로젝트 root 기준입니다.
-data_dir: "data/4_groups"
+data_dir: "data/processed"
 output_dir: "output/4_groups"
 
 #----------------------

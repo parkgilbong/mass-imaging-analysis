@@ -54,7 +54,7 @@ def main(config_path='config/config.yaml'):
                 serial_data_to_average = []
                 
                 for s in s_range:
-                    base_imzml_name = f"{group_name} {n}-{s} {roi_name}-total ion current"
+                    base_imzml_name = f"{group_name} {n}-{s} {roi_name}-total ion count"
                     mean_csv_path = os.path.join(output_dir, f"{base_imzml_name}_mean_intensities.csv")
                     
                     if os.path.exists(mean_csv_path):

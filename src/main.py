@@ -42,7 +42,7 @@ def generate_expected_files(config):
                 
                 for n, s in itertools.product(n_range, s_range):
                     # 파일명 패턴 (추후 config에서 가져오도록 개선 가능)
-                    file_name = f"{group_name} {n}-{s} {roi_name}-total ion current.imzML"
+                    file_name = f"{group_name} {n}-{s} {roi_name}-total ion count.imzML"
                     full_path = os.path.join(data_dir, file_name)
                     expected_files.append(full_path)
             
