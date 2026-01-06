@@ -125,7 +125,7 @@ def run_statistics(data_long_roi, m_z_bin, roi, test_type, p_threshold):
                         })
                         
     except Exception as e:
-        logger.error(f"통계 분석 오류 (bin: {m_z_bin}): {e}", exc_info=True)
+        logger.error(f"Statistical analysis error (bin: {m_z_bin}): {e}", exc_info=True)
 
     return main_test_result, posthoc_results
 
@@ -186,7 +186,7 @@ def plot_single_bin(ax, data_bin, m_z_bin, stats_df_bin):
 
 def export_to_prism(df_long_roi, roi, config, m_z_bins, output_dir):
     try:
-        logger.info(f"Prism용 CSV 생성 중: {roi}")
+        logger.info(f"Generating Prism CSV: {roi}")
         groups_info_list = config['group_info']
         prism_columns = []
         for group_dict in groups_info_list:
@@ -209,7 +209,7 @@ def export_to_prism(df_long_roi, roi, config, m_z_bins, output_dir):
         df_prism.to_csv(prism_file_path, float_format='%.4f', index=True, index_label='m_z_bin')
         
     except Exception as e:
-        logger.error(f"Prism 변환 오류: {e}", exc_info=True)
+        logger.error(f"Prism conversion error: {e}", exc_info=True)
 
 def generate_single_plot(data_bin, roi, m_z_bin, stats_df_bin, group_color_map, groups, output_dir):
     try:
@@ -222,11 +222,11 @@ def generate_single_plot(data_bin, roi, m_z_bin, stats_df_bin, group_color_map, 
         fig_single.savefig(single_plot_path, dpi=150, bbox_inches='tight')
         plt.close(fig_single) 
     except Exception as e:
-        logger.error(f"개별 플롯 저장 실패 ({m_z_bin}): {e}")
+        logger.error(f"Failed to save individual plot ({m_z_bin}): {e}")
         plt.close(fig_single)
 
 def generate_montage_plot(df_long_roi, roi, value_vars, df_posthoc_roi, group_color_map, groups, output_dir):
-    logger.info(f"몽타주 플롯 생성 중: {roi}")
+    logger.info(f"Generating montage plot: {roi}")
     num_bins = len(value_vars)
     cols = int(np.ceil(np.sqrt(num_bins)))
     rows = int(np.ceil(num_bins / cols))
@@ -260,14 +260,14 @@ def generate_montage_plot(df_long_roi, roi, value_vars, df_posthoc_roi, group_co
     plt.close(fig)
 
 def generate_html_report(config, output_dir, df_main_stats, df_posthoc_stats):
-    logger.info("HTML 보고서 생성 시작")
+    logger.info("Starting HTML report generation")
     # ... (HTML 생성 코드는 print 대신 logger를 쓰지 않아도 무방하나, 완료 메시지는 로깅)
     # ... (중략) ... 
     # 기존 코드 유지하되 마지막 print만 변경
-    logger.info(f"HTML 보고서 생성 완료: {os.path.join(output_dir, 'analysis_report.html')}")
+    logger.info(f"HTML report generation complete: {os.path.join(output_dir, 'analysis_report.html')}")
 
 def main(config_path='config/config.yaml'):
-    logger.info("========== Step 3: 통계 분석 및 시각화 시작 ==========")
+    logger.info("========== Step 3: Starting statistical analysis and visualization ==========")
     config = parsing.load_yaml(config_path)
     if config is None: return 
 
@@ -296,7 +296,7 @@ def main(config_path='config/config.yaml'):
     try:
         df_long['group'] = pd.Categorical(df_long['group'], categories=groups, ordered=True)
     except Exception as e:
-        logger.warning(f"그룹 순서 적용 경고: {e}")
+        logger.warning(f"Group order application warning: {e}")
     
     all_main_stats = []
     all_posthoc_stats = []
@@ -304,10 +304,10 @@ def main(config_path='config/config.yaml'):
     group_color_map = dict(zip(groups, palette))
     
     for roi in rois:
-        logger.info(f"ROI 분석 중: {roi}")
+        logger.info(f"Analyzing ROI: {roi}")
         df_long_roi = df_long[df_long['roi'] == roi].copy()
         if df_long_roi.empty:
-            logger.warning(f"데이터 없음: {roi}")
+            logger.warning(f"No data: {roi}")
             continue
         
         for m_z_bin in value_vars: 
@@ -338,16 +338,16 @@ def main(config_path='config/config.yaml'):
             posthoc_stats_path = os.path.join(output_dir, "statistical_results_posthoc.csv")
             df_posthoc_stats.to_csv(posthoc_stats_path, index=False, float_format='%.4e')
         else:
-            logger.info("Post-hoc 결과 없음 (유의차 없음).")
+            logger.info("No post-hoc results (no significance).")
 
         # HTML 보고서 함수 호출 (이전에 정의된 함수 사용)
         # generate_html_report(...) -> 위 코드에 포함되어야 함. 
         # 여기서는 생략했으나 실제 파일에는 포함되어야 함.
 
     except Exception as e:
-        logger.error(f"결과 저장 중 오류: {e}", exc_info=True)
+        logger.error(f"Error saving results: {e}", exc_info=True)
 
-    logger.info("========== Step 3 완료 ==========")
+    logger.info("========== Step 3 complete ==========")
 
 if __name__ == '__main__':
     import argparse
