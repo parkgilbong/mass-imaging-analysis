@@ -45,3 +45,7 @@ dist/
 .env
 .flaskenv
 *.csv
+*.png
+
+# User-specific config files (keep config.yaml as template)
+config/config_*.yaml
