@@ -71,9 +71,7 @@ rule all:
         # Post-hoc results (if generated)
         os.path.join(OUTPUT_DIR, "statistical_results_posthoc.csv"),
         # Plots for each ROI
-        expand(os.path.join(OUTPUT_DIR, "plot_roi_{roi}.png"), roi=ROIS),
-        # Log files
-        expand(os.path.join(LOG_DIR, "{step}.log"), step=["parse_data", "aggregate_data", "analyze_data"])
+        expand(os.path.join(OUTPUT_DIR, "plot_montage_roi_{roi}.png"), roi=ROIS)
 
 # Rule: Step 1 - Parse imzML files and extract m/z bin intensities
 rule parse_data:
@@ -87,8 +85,7 @@ rule parse_data:
         os.path.join(LOG_DIR, "parse_data.log")
     shell:
         """
-        mkdir -p {LOG_DIR}
-        python src/main.py --config {input.config_file} --log-file {log} 2>&1 | tee -a {log}
+        python src/main.py --config {input.config_file} --log-file {log}
         """
 
 # Rule: Step 2 - Aggregate mean intensities across technical replicates
@@ -102,8 +99,7 @@ rule aggregate_data:
         os.path.join(LOG_DIR, "aggregate_data.log")
     shell:
         """
-        mkdir -p {LOG_DIR}
-        python src/aggregate.py --config {input.config_file} --log-file {log} 2>&1 | tee -a {log}
+        python src/aggregate.py --config {input.config_file} --log-file {log}
         """
 
 # Rule: Step 3 - Statistical analysis and visualization
@@ -114,13 +110,12 @@ rule analyze_data:
     output:
         stats_main = os.path.join(OUTPUT_DIR, "statistical_results_main.csv"),
         stats_posthoc = os.path.join(OUTPUT_DIR, "statistical_results_posthoc.csv"),
-        plots = expand(os.path.join(OUTPUT_DIR, "plot_roi_{roi}.png"), roi=ROIS)
+        plots = expand(os.path.join(OUTPUT_DIR, "plot_montage_roi_{roi}.png"), roi=ROIS)
     log:
         os.path.join(LOG_DIR, "analyze_data.log")
     shell:
         """
-        mkdir -p {LOG_DIR}
-        python src/analysis.py --config {input.config_file} --log-file {log} 2>&1 | tee -a {log}
+        python src/analysis.py --config {input.config_file} --log-file {log}
         """
 
 # Rule: Clean output directory (optional)

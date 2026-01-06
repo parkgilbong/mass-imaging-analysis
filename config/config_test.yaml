@@ -1,0 +1,117 @@
+#----------------------
+# directory path
+#----------------------
+# Paths are relative to the project root where main.ipynb is executed.
+data_dir: "data/processed"
+output_dir: "output/260106"
+
+#----------------------
+# Group parameters 
+#----------------------
+# 개체별로 다른 serial section 수를 지원합니다.
+# num_serial은 정수(모든 개체 동일) 또는 리스트(개체별로 다름)로 지정 가능합니다.
+group_info:
+  
+  # 새로운 방식: 개체별로 다른 serial section 수
+  - name: "saline"
+    n_per_group: 3
+    num_serial: [2, 2, 2]  # 리스트: mouse 1=2개, mouse 2=2개, mouse 3=2 개
+  
+  - name: "glyoxylate"
+    n_per_group: 3
+    num_serial: [2, 2, 2]  # mouse 1=2개, mouse 2=2개, mouse 3=2개
+  
+  - name: "acetate"
+    n_per_group: 3
+    num_serial: [2, 2, 2]  # mouse 1=2개, mouse 2=2개, mouse 3=2개
+
+  - name: "etoh"
+    n_per_group: 3
+    num_serial: [2, 2, 2]  # mouse 1=2개, mouse 2=2개, mouse 3=2개
+
+#----------------------
+# ROI parameters
+#----------------------
+roi_info:
+  - name: "cortex"
+  # - name: "hippocampus"
+
+#----------------------
+# Binning parameters
+#----------------------
+binning_settings:
+  # 'mode' can be either 'file' or 'direct'.
+  # 'file': Read m/z ranges from the .csv file specified in 'file_path'.
+  # 'direct': Use m/z ranges directly defined in 'direct_bins'.
+  
+  mode: "file" # or "direct"
+
+  # --- Mode 1: 'file' setting ---
+  file_path: "config/Mass ranges of molecules.csv"
+
+  # --- Mode 2: 'direct' setting (not used when 'file' mode is active) ---
+  # To use this method instead of 'file_path', change to mode: "direct".
+  direct_bins:
+    - mz: 72.9926
+      width: 0.003
+      name: "Bin 1 (72)"
+    - mz: 102.055
+      width: 0.003
+      name: "Bin 2 (102)"
+    - mz: 130.9971
+      width: 0.00478
+      name: "Bin 3 (130)"
+    - mz: 132.0291
+      width: 0.003
+      name: "Bin 4 (132)"
+    - mz: 133.013
+      width: 0.003
+      name: "Bin 5 (133)"
+    - mz: 145.0601
+      width: 0.003
+      name: "Bin 6 (145)"
+    - mz: 146.0445
+      width: 0.003
+      name: "Bin 7 (146)"
+
+#----------------------
+# Outlier Detection Settings
+#----------------------
+outlier_detection:
+  # Enable/disable outlier detection for mean intensity calculation
+  # When enabled, outliers are removed before computing bin-level averages
+  enabled: true  # Set to true to enable outlier filtering
+  
+  # Detection method: 'modified_z', 'z_score', or 'iqr'
+  # - modified_z: Robust to non-normal distributions (RECOMMENDED)
+  # - z_score: Assumes normal distribution
+  # - iqr: Distribution-free, very conservative
+  method: "modified_z"
+  
+  # Cutoff threshold (interpretation depends on method):
+  # - modified_z: 3.5 (recommended, detects extreme outliers)
+  # - z_score: 2.5-3.0 (2.5=more sensitive, 3.0=more conservative)
+  # - iqr: 1.5-3.0 (1.5=standard Tukey's fences, 3.0=very conservative)
+  cutoff: 3.5
+  
+  # Minimum number of data points required after outlier removal
+  # If fewer points remain, use all original data (safety check)
+  min_remaining: 3
+
+#----------------------
+# Statistics settings
+#----------------------
+statistics_settings:
+  # Choose 'parametric' or 'non_parametric' test
+  # For n=3, sample size is very small, so 'non_parametric' is strongly recommended.
+  test_type: "parametric" # 'parametric' | 'non_parametric'
+  
+  # Statistical significance threshold (p-value)
+  p_value_threshold: 0.05
+
+#----------------------
+# Report settings
+#----------------------
+report_settings:
+  title: "Mass Imaging Analysis Report" # Report title
+__config_file__: "config/config_test.yaml"
