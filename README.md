@@ -166,6 +166,65 @@ conda --version
 4. **실행 시간:**
    - 파일 수와 크기에 따라 다르지만, 전체 파이프라인 실행에 수 분에서 수십 분이 소요될 수 있습니다.
 
+### 명령줄 인터페이스 (CLI) 사용
+
+Jupyter Notebook 대신 터미널에서 직접 파이프라인을 실행할 수 있습니다.
+
+1. **개별 단계 실행:**
+   ```bash
+   # 환경 활성화
+   conda activate mass-imaging-analysis
+   
+   # Step 1: 데이터 파싱
+   python src/main.py --config config/config.yaml
+   
+   # Step 2: 데이터 집계
+   python src/aggregate.py --config config/config.yaml
+   
+   # Step 3: 통계 분석 및 시각화
+   python src/analysis.py --config config/config.yaml
+   ```
+
+2. **도움말 보기:**
+   ```bash
+   python src/main.py --help
+   python src/aggregate.py --help
+   python src/analysis.py --help
+   ```
+
+3. **Snakemake와 함께 사용:**
+   
+   CLI 인터페이스는 Snakemake 등의 워크플로우 관리 도구와 함께 사용하기 적합합니다.
+   
+   ```python
+   # Snakefile 예시
+   rule parse_data:
+       input:
+           config="config/config.yaml"
+       output:
+           directory("output/4_groups")
+       shell:
+           "python src/main.py --config {input.config}"
+   
+   rule aggregate_data:
+       input:
+           config="config/config.yaml",
+           parsed="output/4_groups"
+       output:
+           "output/4_groups/aggregated_mean_intensities.csv"
+       shell:
+           "python src/aggregate.py --config {input.config}"
+   
+   rule analyze_data:
+       input:
+           config="config/config.yaml",
+           aggregated="output/4_groups/aggregated_mean_intensities.csv"
+       output:
+           "output/4_groups/statistical_results_main.csv"
+       shell:
+           "python src/analysis.py --config {input.config}"
+   ```
+
 ---
 
 ## 파이프라인 구조
@@ -314,6 +373,44 @@ statistics_settings:
 **파일명 규칙:**
 - 파일명 템플릿: `{group} {n}-{s} {roi}-total ion count.imzML`
 - 예시: `saline 1-1 cortex-total ion count.imzML`
+
+#### 개체별 Serial Section 수 설정
+
+**기존 방식 (모든 개체가 동일한 serial section 수):**
+```yaml
+group_info:
+  - name: "saline"
+    n_per_group: 3
+    num_serial: 2  # 정수: 모든 mouse가 2개 section
+```
+
+**새로운 방식 (개체별로 다른 serial section 수):**
+```yaml
+group_info:
+  - name: "saline"
+    n_per_group: 3
+    num_serial: [2, 1, 3]  # 리스트: mouse 1=2개, mouse 2=1개, mouse 3=3개
+```
+
+**혼합 사용:**
+```yaml
+group_info:
+  # 기존 방식
+  - name: "control"
+    n_per_group: 3
+    num_serial: 2
+  
+  # 새로운 방식
+  - name: "treatment"
+    n_per_group: 3
+    num_serial: [2, 1, 3]
+```
+
+**Validation 규칙:**
+- `num_serial`이 리스트인 경우, 리스트 길이는 `n_per_group`과 일치해야 합니다
+- 모든 값은 양의 정수여야 합니다
+- 불일치 시 명확한 에러 메시지가 출력됩니다
+
 
 ### config/Mass ranges of molecules.csv
 

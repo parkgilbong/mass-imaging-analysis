@@ -15,11 +15,64 @@ except ImportError:
         pass
 
 CONFIG_FILE = 'config/config.yaml'
-logger = get_logger(__name__)
+# Logger will be initialized in main() with optional log file
+
+def _parse_individuals_info(group_dict):
+    """
+    Parse per-individual serial section information from group configuration
+    
+    Args:
+        group_dict: Group configuration dictionary
+    
+    Returns:
+        List[Tuple[int, int]]: List in format [(n, num_serial), ...]
+    
+    Raises:
+        ValueError: If config format is invalid or validation fails
+    """
+    group_name = group_dict.get('name', 'unknown')
+    
+    if 'n_per_group' not in group_dict:
+        raise ValueError(f"Group '{group_name}': 'n_per_group' is required")
+    
+    n_per_group = group_dict['n_per_group']
+    num_serial = group_dict.get('num_serial')
+    
+    if num_serial is None:
+        raise ValueError(f"Group '{group_name}': 'num_serial' is required")
+    
+    # Case 1: num_serial is integer (traditional - all individuals same)
+    if isinstance(num_serial, int):
+        return [(n, num_serial) for n in range(1, n_per_group + 1)]
+    
+    # Case 2: num_serial is list (new - per-individual)
+    elif isinstance(num_serial, list):
+        # Validation: list length must match n_per_group
+        if len(num_serial) != n_per_group:
+            raise ValueError(
+                f"Group '{group_name}': num_serial list length ({len(num_serial)}) "
+                f"does not match n_per_group ({n_per_group}). "
+                f"num_serial: {num_serial}"
+            )
+        
+        # Verify all elements are positive integers
+        if not all(isinstance(s, int) and s > 0 for s in num_serial):
+            raise ValueError(
+                f"Group '{group_name}': All values in num_serial list must be positive integers. "
+                f"num_serial: {num_serial}"
+            )
+        
+        return [(n+1, serial_count) for n, serial_count in enumerate(num_serial)]
+    
+    else:
+        raise ValueError(
+            f"Group '{group_name}': num_serial must be an integer or list of integers. "
+            f"Current type: {type(num_serial)}"
+        )
 
 def main(config_path='config/config.yaml'):
-    """데이터 집계 실행 함수"""
-    logger.info("========== Step 2: 데이터 집계 시작 ==========")
+    """Data aggregation execution function"""
+    logger.info("========== Step 2: Starting data aggregation ==========")
     
     config = parsing.load_yaml(config_path)
     if config is None:
@@ -30,30 +83,36 @@ def main(config_path='config/config.yaml'):
         groups_info_list = config['group_info']
         rois_info_list = config['roi_info']
     except KeyError as e:
-        logger.error(f"config.yaml 키 오류: {e}")
+        logger.error(f"config.yaml key error: {e}")
         return
         
-    logger.info(f"'{output_dir}' 폴더의 데이터를 집계합니다.")
+    logger.info(f"Aggregating data from '{output_dir}' folder.")
 
     all_aggregated_data = []
     m_z_columns = None
 
-    # 예상 조합 수 계산
+    # Calculate expected number of combinations
     total_combinations = len(groups_info_list) * sum(g['n_per_group'] for g in groups_info_list) * len(rois_info_list)
-    # logger.info(f"총 {total_combinations}개 조합(group*n*roi) 집계 시도")
+    # logger.info(f"Attempting to aggregate {total_combinations} combinations (group*n*roi)")
 
     for group_dict in groups_info_list:
         group_name = group_dict['name']
-        n_range = range(1, group_dict['n_per_group'] + 1)
-        s_range = range(1, group_dict['num_serial'] + 1)
+        
+        # Parse per-individual serial section info (includes validation)
+        try:
+            individuals_info = _parse_individuals_info(group_dict)
+        except ValueError as e:
+            logger.error(f"Config validation error: {e}")
+            return
         
         for roi_dict in rois_info_list:
             roi_name = roi_dict['name']
             
-            for n in n_range:
+            # Process only actual serial section count per individual
+            for n, num_serial in individuals_info:
                 serial_data_to_average = []
                 
-                for s in s_range:
+                for s in range(1, num_serial + 1):
                     base_imzml_name = f"{group_name} {n}-{s} {roi_name}-total ion count"
                     mean_csv_path = os.path.join(output_dir, f"{base_imzml_name}_mean_intensities.csv")
                     
@@ -64,14 +123,14 @@ def main(config_path='config/config.yaml'):
                             
                             if m_z_columns is None:
                                 m_z_columns = df_mean.columns.tolist()
-                                # logger.info(f"m/z 컬럼 감지됨: {len(m_z_columns)}개")
+                                # logger.info(f"Detected m/z columns: {len(m_z_columns)} columns")
                         except Exception as e:
-                            logger.error(f"파일 읽기 실패 ({mean_csv_path}): {e}")
+                            logger.error(f"Failed to read file ({mean_csv_path}): {e}")
                     else:
-                        logger.warning(f"파일 누락됨: {mean_csv_path}")
+                        logger.warning(f"File missing: {mean_csv_path}")
 
                 if not serial_data_to_average:
-                    logger.warning(f"데이터 없음 - 건너뜀: {group_name} n={n} {roi_name}")
+                    logger.warning(f"No data - skipping: {group_name} n={n} {roi_name}")
                     continue
                     
                 df_concat = pd.concat(serial_data_to_average)
@@ -83,10 +142,10 @@ def main(config_path='config/config.yaml'):
                 agg_row_data['roi'] = roi_name
                 
                 all_aggregated_data.append(agg_row_data)
-                logger.info(f"집계 완료: {group_name} n={n} {roi_name} ({len(serial_data_to_average)} files)")
+                logger.info(f"Aggregation complete: {group_name} n={n} {roi_name} ({len(serial_data_to_average)} files)")
 
     if not all_aggregated_data:
-        logger.error("집계된 데이터가 없습니다. Step 1이 정상적으로 수행되었는지 확인하세요.")
+        logger.error("No aggregated data. Please verify that Step 1 was completed successfully.")
         return
         
     df_final = pd.DataFrame(all_aggregated_data)
@@ -100,8 +159,44 @@ def main(config_path='config/config.yaml'):
     output_csv_path = os.path.join(output_dir, "aggregated_mean_intensities.csv")
     df_final.to_csv(output_csv_path, index=False, float_format='%.4f')
     
-    logger.info(f"최종 집계 파일 저장 완료: {output_csv_path}")
-    logger.info("========== Step 2 완료 ==========")
+    logger.info(f"Final aggregated file saved: {output_csv_path}")
+    logger.info("========== Step 2 complete ==========")
 
 if __name__ == '__main__':
-    main(config_path='config/config.yaml')
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        description='Step 2: Aggregate mean intensities across technical replicates',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Examples:
+  # Run with default config
+  python src/aggregate.py
+  
+  # Run with custom config
+  python src/aggregate.py --config config/custom_config.yaml
+  
+  # Run with Snakemake (custom log file)
+  python src/aggregate.py --config config/config.yaml --log-file output/logs/aggregate_data.log
+        '''
+    )
+    parser.add_argument(
+        '--config',
+        type=str,
+        default='config/config.yaml',
+        help='Path to config YAML file (default: config/config.yaml)'
+    )
+    parser.add_argument(
+        '--log-file',
+        type=str,
+        default=None,
+        help='Path to log file (for Snakemake integration)'
+    )
+    
+    args = parser.parse_args()
+    
+    # Initialize logger with custom log file if provided
+    global logger
+    logger = get_logger(__name__, log_file=args.log_file)
+    
+    main(config_path=args.config)

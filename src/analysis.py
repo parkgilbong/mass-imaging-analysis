@@ -26,7 +26,7 @@ except ImportError:
         pass 
 
 CONFIG_FILE = 'config/config.yaml'
-logger = get_logger(__name__)
+# Logger will be initialized in main() with optional log file
 
 def run_statistics(data_long_roi, m_z_bin, roi, test_type, p_threshold):
     # (로직 동일 - print 제거)
@@ -129,21 +129,60 @@ def run_statistics(data_long_roi, m_z_bin, roi, test_type, p_threshold):
 
     return main_test_result, posthoc_results
 
-# (plot_single_bin 함수는 기존과 동일, 로깅 불필요)
+# Plot function with pairwise comparison brackets
 def plot_single_bin(ax, data_bin, m_z_bin, stats_df_bin):
+    """
+    Plot bar chart with individual data points and pairwise comparison brackets.
+    
+    Args:
+        ax: Matplotlib axis
+        data_bin: Data for this m/z bin
+        m_z_bin: m/z bin name
+        stats_df_bin: Post-hoc statistics for this bin (with 'group1', 'group2', 'significant' columns)
+    """
+    # Create bar plot with strip plot overlay
     sns.barplot(data=data_bin, x='group', y='intensity', hue='group', palette='Paired', errorbar=None, ax=ax, legend=False)
     sns.stripplot(data=data_bin, x='group', y='intensity', color='black', legend=False, s=5, ax=ax, jitter=False)
     ax.set_title(f"m/z bin: {m_z_bin}", fontsize=10)
     ax.set_xlabel('')
     ax.set_ylabel('Intensity')
     ax.tick_params(axis='x', rotation=45)
+    
+    # Add pairwise comparison brackets for significant pairs
     significant_pairs = stats_df_bin[stats_df_bin['significant'] == True]
+    
     if not significant_pairs.empty:
+        # Get group names and their x-axis positions
+        groups = data_bin['group'].unique()
+        group_to_x = {group: i for i, group in enumerate(groups)}
+        
+        # Calculate y-positions for brackets
         max_intensity = data_bin['intensity'].max()
-        y_offset = max_intensity * 0.05 
-        y = max_intensity + y_offset
-        x_pos = (len(ax.get_xticklabels()) - 1) / 2.0
-        ax.text(x_pos, y, "*", ha='center', va='bottom', fontsize=14, color='red')
+        y_range = data_bin['intensity'].max() - data_bin['intensity'].min()
+        bracket_height = y_range * 0.05  # Height of each bracket level
+        base_y = max_intensity + y_range * 0.05  # Starting y position
+        
+        # Draw brackets for each significant pair
+        for idx, (_, row) in enumerate(significant_pairs.iterrows()):
+            group1 = row['group1']
+            group2 = row['group2']
+            
+            # Get x positions for the two groups
+            x1 = group_to_x.get(group1)
+            x2 = group_to_x.get(group2)
+            
+            if x1 is not None and x2 is not None:
+                # Calculate y position for this bracket (stack them vertically)
+                y = base_y + idx * bracket_height * 1.5
+                
+                # Draw horizontal lines and vertical connectors
+                ax.plot([x1, x1, x2, x2], [y, y + bracket_height*0.3, y + bracket_height*0.3, y], 
+                       'k-', linewidth=1.5)
+                
+                # Add asterisk in the middle
+                x_mid = (x1 + x2) / 2
+                ax.text(x_mid, y + bracket_height*0.5, '*', 
+                       ha='center', va='bottom', fontsize=14, color='red', fontweight='bold')
 
 def export_to_prism(df_long_roi, roi, config, m_z_bins, output_dir):
     try:
@@ -240,12 +279,12 @@ def main(config_path='config/config.yaml'):
         p_threshold = stats_settings['p_value_threshold']
         groups = [g['name'] for g in config['group_info']]
     except KeyError as e:
-        logger.error(f"config.yaml 키 오류: {e}")
+        logger.error(f"config.yaml key error: {e}")
         return
         
     agg_csv_path = os.path.join(output_dir, "aggregated_mean_intensities.csv")
     if not os.path.exists(agg_csv_path):
-        logger.error("집계 파일이 없습니다. Step 2를 먼저 실행하세요.")
+        logger.error("Aggregated file not found. Please run Step 2 first.")
         return
         
     df_agg = pd.read_csv(agg_csv_path)
@@ -311,4 +350,40 @@ def main(config_path='config/config.yaml'):
     logger.info("========== Step 3 완료 ==========")
 
 if __name__ == '__main__':
-    main(config_path='config/config.yaml')
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        description='Step 3: Perform statistical analysis and generate visualizations',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Examples:
+  # Run with default config
+  python src/analysis.py
+  
+  # Run with custom config
+  python src/analysis.py --config config/custom_config.yaml
+  
+  # Run with Snakemake (custom log file)
+  python src/analysis.py --config config/config.yaml --log-file output/logs/analyze_data.log
+        '''
+    )
+    parser.add_argument(
+        '--config',
+        type=str,
+        default='config/config.yaml',
+        help='Path to config YAML file (default: config/config.yaml)'
+    )
+    parser.add_argument(
+        '--log-file',
+        type=str,
+        default=None,
+        help='Path to log file (for Snakemake integration)'
+    )
+    
+    args = parser.parse_args()
+    
+    # Initialize logger with custom log file if provided
+    global logger
+    logger = get_logger(__name__, log_file=args.log_file)
+    
+    main(config_path=args.config)

@@ -3,16 +3,17 @@ import os
 import sys
 from datetime import datetime
 
-def get_logger(name, log_dir='logs'):
+def get_logger(name, log_dir='logs', log_file=None):
     """
-    콘솔과 파일에 동시에 로그를 남기는 로거를 생성하여 반환합니다.
+    Create and return a logger that logs to both console and file.
     
     Args:
-        name (str): 로거 이름 (보통 __name__ 사용)
-        log_dir (str): 로그 파일을 저장할 디렉토리 경로
+        name (str): Logger name (usually __name__)
+        log_dir (str): Directory to save log files (used if log_file is None)
+        log_file (str): Specific log file path (overrides log_dir if provided)
     
     Returns:
-        logging.Logger: 설정된 로거 객체
+        logging.Logger: Configured logger object
     """
     # 로거 생성
     logger = logging.getLogger(name)
@@ -36,19 +37,25 @@ def get_logger(name, log_dir='logs'):
     console_handler.setLevel(logging.INFO)
     logger.addHandler(console_handler)
     
-    # 2. 파일 핸들러 (FileHandler)
+    # 2. File handler (FileHandler)
     try:
-        # 로그 디렉토리 생성
-        if not os.path.exists(log_dir):
-            os.makedirs(log_dir)
-            
-        # 날짜별 로그 파일명 생성 (예: logs/2024-05-20_analysis.log)
-        today = datetime.now().strftime('%Y-%m-%d')
-        log_filepath = os.path.join(log_dir, f"{today}_analysis.log")
+        if log_file:
+            # Use specified log file (for Snakemake integration)
+            log_filepath = log_file
+            # Create directory if it doesn't exist
+            log_file_dir = os.path.dirname(log_filepath)
+            if log_file_dir and not os.path.exists(log_file_dir):
+                os.makedirs(log_file_dir)
+        else:
+            # Use default date-based log file
+            if not os.path.exists(log_dir):
+                os.makedirs(log_dir)
+            today = datetime.now().strftime('%Y-%m-%d')
+            log_filepath = os.path.join(log_dir, f"{today}_analysis.log")
         
         file_handler = logging.FileHandler(log_filepath, encoding='utf-8')
         file_handler.setFormatter(formatter)
-        file_handler.setLevel(logging.INFO) # 파일에는 DEBUG 레벨까지 저장하려면 여기를 수정
+        file_handler.setLevel(logging.INFO)  # Change to DEBUG if needed
         logger.addHandler(file_handler)
         
     except Exception as e:

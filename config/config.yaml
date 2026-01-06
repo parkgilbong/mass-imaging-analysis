@@ -1,30 +1,33 @@
 #----------------------
 # directory path
 #----------------------
-# 경로는 main.ipynb가 실행되는 프로젝트 root 기준입니다.
+# Paths are relative to the project root where main.ipynb is executed.
 data_dir: "data/processed"
 output_dir: "output/4_groups"
 
 #----------------------
 # Group parameters 
 #----------------------
-group_info: # 상황에 맞게 그룹수를 늘리면 됩니다. 형식을 유지하는 것이 중요합니다. 
+# 개체별로 다른 serial section 수를 지원합니다.
+# num_serial은 정수(모든 개체 동일) 또는 리스트(개체별로 다름)로 지정 가능합니다.
+group_info:
+  # 기존 방식: 모든 개체가 동일한 serial section 수
+  - name: "control"
+    n_per_group: 3
+    num_serial: 2  # 정수: mouse 1,2,3 모두 2개 section
+  
+  # 새로운 방식: 개체별로 다른 serial section 수
   - name: "saline"
     n_per_group: 3
-    num_serial: 2
+    num_serial: [2, 1, 3]  # 리스트: mouse 1=2개, mouse 2=1개, mouse 3=3개
+  
   - name: "glyoxylate"
     n_per_group: 3
-    num_serial: 2
+    num_serial: [2, 2, 1]  # mouse 1=2개, mouse 2=2개, mouse 3=1개
+  
   - name: "acetate"
-    n_per_group: 3
-    num_serial: 2
-  - name: "etoh"
-    n_per_group: 3
-    num_serial: 2
-  # 예시: 만약 'etoh' 그룹만 n=4, serial=1 이라면:
-  # - name: "etoh"
-  #   n_per_group: 4
-  #   num_serial: 1
+    n_per_group: 4
+    num_serial: [1, 2, 2, 3]  # mouse 1=1개, mouse 2=2개, mouse 3=2개, mouse 4=3개
 
 #----------------------
 # ROI parameters
@@ -37,17 +40,17 @@ roi_info:
 # Binning parameters
 #----------------------
 binning_settings:
-  # 'mode'는 'file' 또는 'direct' 중 하나를 선택합니다.
-  # 'file': 'file_path'에 지정된 .csv 파일에서 m/z 범위를 읽어옵니다.
-  # 'direct': 'direct_bins'에 직접 정의된 m/z 범위를 사용합니다.
+  # 'mode' can be either 'file' or 'direct'.
+  # 'file': Read m/z ranges from the .csv file specified in 'file_path'.
+  # 'direct': Use m/z ranges directly defined in 'direct_bins'.
   
-  mode: "file" #또는 "direct"
+  mode: "file" # or "direct"
 
-  # --- Mode 1: 'file' 설정 ---
+  # --- Mode 1: 'file' setting ---
   file_path: "config/Mass ranges of molecules.csv"
 
-  # --- Mode 2: 'direct' 설정 (현재 'file' 모드가 활성화되어 사용되지 않음) ---
-  # 'file_path' 대신 이 방식을 사용하려면 mode: "direct"로 변경하세요.
+  # --- Mode 2: 'direct' setting (not used when 'file' mode is active) ---
+  # To use this method instead of 'file_path', change to mode: "direct".
   direct_bins:
     - mz: 72.9926
       width: 0.003
@@ -75,15 +78,15 @@ binning_settings:
 # Statistics settings
 #----------------------
 statistics_settings:
-  # 'parametric' (모수) 또는 'non_parametric' (비모수) 검정 선택
-  # n=3은 샘플 크기가 매우 작으므로 'non_parametric'을 강력히 권장합니다.
+  # Choose 'parametric' or 'non_parametric' test
+  # For n=3, sample size is very small, so 'non_parametric' is strongly recommended.
   test_type: "parametric" # 'parametric' | 'non_parametric'
   
-  # 통계적 유의성 판단 기준 (p-value)
+  # Statistical significance threshold (p-value)
   p_value_threshold: 0.05
 
 #----------------------
 # Report settings
 #----------------------
 report_settings:
-  title: "Mass Imaging Analysis Report" # 보고서 제목
+  title: "Mass Imaging Analysis Report" # Report title
