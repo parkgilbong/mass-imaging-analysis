@@ -75,6 +75,30 @@ binning_settings:
       name: "Bin 7 (146)"
 
 #----------------------
+# Outlier Detection Settings
+#----------------------
+outlier_detection:
+  # Enable/disable outlier detection for mean intensity calculation
+  # When enabled, outliers are removed before computing bin-level averages
+  enabled: false  # Set to true to enable outlier filtering
+  
+  # Detection method: 'modified_z', 'z_score', or 'iqr'
+  # - modified_z: Robust to non-normal distributions (RECOMMENDED)
+  # - z_score: Assumes normal distribution
+  # - iqr: Distribution-free, very conservative
+  method: "modified_z"
+  
+  # Cutoff threshold (interpretation depends on method):
+  # - modified_z: 3.5 (recommended, detects extreme outliers)
+  # - z_score: 2.5-3.0 (2.5=more sensitive, 3.0=more conservative)
+  # - iqr: 1.5-3.0 (1.5=standard Tukey's fences, 3.0=very conservative)
+  cutoff: 3.5
+  
+  # Minimum number of data points required after outlier removal
+  # If fewer points remain, use all original data (safety check)
+  min_remaining: 3
+
+#----------------------
 # Statistics settings
 #----------------------
 statistics_settings:

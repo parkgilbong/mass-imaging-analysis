@@ -156,9 +156,18 @@ def main(config_path='config/config.yaml'):
     
     logger.info(f"Starting to process {len(file_list)} files total.")
     
+    # Load outlier detection config
+    outlier_config = config.get('outlier_detection', {'enabled': False})
+    
     for i, imzml_file in enumerate(file_list):
         logger.info(f"--- Processing file [{i+1}/{len(file_list)}] ---")
-        parsing.process_imzml_with_bins(imzml_file, master_bins, bin_names, output_dir)
+        parsing.process_imzml_with_bins(
+            imzml_file, 
+            master_bins, 
+            bin_names, 
+            output_dir,
+            outlier_config=outlier_config
+        )
         
     logger.info("========== Step 1 complete: All files processed ==========")
 

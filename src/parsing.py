@@ -11,12 +11,17 @@ import yaml
 # Import logging utility
 try:
     from utils.logging_utils import get_logger
+    from utils.outlier_detection import remove_outliers
 except ImportError:
     try:
         from .utils.logging_utils import get_logger
+        from .utils.outlier_detection import remove_outliers
     except ImportError:
         import logging
         get_logger = logging.getLogger
+        # Fallback: define dummy remove_outliers if import fails
+        def remove_outliers(data, **kwargs):
+            return data, 0, None
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -91,9 +96,17 @@ def load_master_bins(binning_config):
         return None, None
 
 
-def process_imzml_with_bins(imzml_filepath, master_bins, bin_names, output_dir="."):
+def process_imzml_with_bins(imzml_filepath, master_bins, bin_names, output_dir=".", outlier_config=None):
     """
     Parse .imzML file and save as CSV file.
+    
+    Args:
+        imzml_filepath: Path to .imzML file
+        master_bins: List of (min_mz, max_mz) tuples
+        bin_names: List of bin names
+        output_dir: Output directory path
+        outlier_config: Dict with outlier detection settings (optional)
+                       Keys: 'enabled', 'method', 'cutoff', 'min_remaining'
     """
     try:
         # 1. Create ImzMLParser object
@@ -147,8 +160,16 @@ def process_imzml_with_bins(imzml_filepath, master_bins, bin_names, output_dir="
         df_full.to_csv(output_intensities_csv, index=False, float_format='%.4f')
         # logger.info(f"Binned intensity saved: {output_intensities_csv}")
 
-        # 5. Save mean intensities
-        mean_intensities = df_intensities.mean().to_frame().T
+        # 5. Calculate mean intensities with optional outlier removal
+        if outlier_config and outlier_config.get('enabled', False):
+            mean_intensities = calculate_mean_with_outlier_removal(
+                df_intensities, 
+                outlier_config,
+                logger
+            )
+        else:
+            mean_intensities = df_intensities.mean().to_frame().T
+        
         output_mean_csv = os.path.join(output_dir, f"{base_filename}_mean_intensities.csv")
         mean_intensities.to_csv(output_mean_csv, index=False, float_format='%.4f')
         logger.info(f"Processing complete and saved: {output_mean_csv}")
@@ -159,3 +180,54 @@ def process_imzml_with_bins(imzml_filepath, master_bins, bin_names, output_dir="
         logger.error("'lxml' library error.")
     except Exception as e:
         logger.error(f"Error during data processing ({os.path.basename(imzml_filepath)}): {e}", exc_info=True)
+
+
+def calculate_mean_with_outlier_removal(df_intensities, outlier_config, logger):
+    """
+    Calculate mean intensities with outlier detection and removal.
+    
+    Processes each bin (column) separately to detect and remove outliers
+    before computing the mean intensity for that bin.
+    
+    Args:
+        df_intensities: DataFrame with intensity values (rows=spectra, cols=bins)
+        outlier_config: Dict with 'method', 'cutoff', 'min_remaining'
+        logger: Logger instance
+    
+    Returns:
+        DataFrame with mean intensities (1 row, columns=bins)
+    """
+    method = outlier_config.get('method', 'modified_z')
+    cutoff = outlier_config.get('cutoff', 3.5)
+    min_remaining = outlier_config.get('min_remaining', 3)
+    
+    mean_values = []
+    total_outliers = 0
+    total_points = 0
+    
+    # Process each bin (column) separately
+    for col in df_intensities.columns:
+        bin_data = df_intensities[col].values
+        total_points += len(bin_data)
+        
+        # Remove outliers from this bin
+        filtered_data, n_removed, _ = remove_outliers(
+            bin_data, 
+            method=method, 
+            cutoff=cutoff, 
+            min_remaining=min_remaining
+        )
+        
+        total_outliers += n_removed
+        mean_values.append(np.mean(filtered_data))
+    
+    if total_outliers > 0:
+        logger.info(
+            f"Outlier detection: removed {total_outliers}/{total_points} points "
+            f"({100*total_outliers/total_points:.2f}%) using {method} method (cutoff={cutoff})"
+        )
+    else:
+        logger.info(f"Outlier detection: no outliers detected using {method} method (cutoff={cutoff})")
+    
+    # Create DataFrame with same structure as original mean calculation
+    return pd.DataFrame([mean_values], columns=df_intensities.columns)
