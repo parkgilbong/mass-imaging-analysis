@@ -25,25 +25,58 @@ def _parse_individuals_info(group_dict):
         group_dict: Group configuration dictionary
     
     Returns:
-        List[Tuple[int, int]]: List in format [(n, num_serial), ...]
+        List[Tuple[int, List[int]]]: List in format [(n, [s1, s2, ...]), ...]
     
     Raises:
         ValueError: If config format is invalid or validation fails
     """
     group_name = group_dict.get('name', 'unknown')
     
-    if 'n_per_group' not in group_dict:
-        raise ValueError(f"Group '{group_name}': 'n_per_group' is required")
-    
-    n_per_group = group_dict['n_per_group']
+    n_per_group = group_dict.get('n_per_group')
     num_serial = group_dict.get('num_serial')
     
+    # Determine individual IDs
+    individual_ids = group_dict.get('individual_ids')
+    if individual_ids:
+        if not isinstance(individual_ids, list):
+             raise ValueError(f"Group '{group_name}': individual_ids must be a list of integers.")
+        
+        # Infer n_per_group if missing
+        if n_per_group is None:
+            n_per_group = len(individual_ids)
+        elif len(individual_ids) != n_per_group:
+            raise ValueError(
+                f"Group '{group_name}': individual_ids length ({len(individual_ids)}) "
+                f"does not match n_per_group ({n_per_group}). "
+                f"individual_ids: {individual_ids}"
+            )
+    else:
+        if n_per_group is None:
+             raise ValueError(f"Group '{group_name}': 'n_per_group' is required if 'individual_ids' is missing")
+        individual_ids = list(range(1, n_per_group + 1))
+
+    # Check for explicit serial_ids (overrides num_serial)
+    serial_ids = group_dict.get('serial_ids')
+    if serial_ids:
+        if len(serial_ids) != n_per_group:
+            raise ValueError(
+                f"Group '{group_name}': serial_ids length ({len(serial_ids)}) "
+                f"does not match n_per_group ({n_per_group}). "
+                f"serial_ids: {serial_ids}"
+            )
+        # Validate structure (list of lists of ints)
+        if not all(isinstance(s_list, list) and all(isinstance(s, int) for s in s_list) for s_list in serial_ids):
+             raise ValueError(f"Group '{group_name}': serial_ids must be a list of lists of integers.")
+        
+        return list(zip(individual_ids, serial_ids))
+
     if num_serial is None:
-        raise ValueError(f"Group '{group_name}': 'num_serial' is required")
-    
+        raise ValueError(f"Group '{group_name}': 'num_serial' (or 'serial_ids') is required")
+
+    # Fallback: Generate serial IDs from num_serial
     # Case 1: num_serial is integer (traditional - all individuals same)
     if isinstance(num_serial, int):
-        return [(n, num_serial) for n in range(1, n_per_group + 1)]
+        return [(ind_id, list(range(1, num_serial + 1))) for ind_id in individual_ids]
     
     # Case 2: num_serial is list (new - per-individual)
     elif isinstance(num_serial, list):
@@ -62,7 +95,7 @@ def _parse_individuals_info(group_dict):
                 f"num_serial: {num_serial}"
             )
         
-        return [(n+1, serial_count) for n, serial_count in enumerate(num_serial)]
+        return [(ind_id, list(range(1, count + 1))) for ind_id, count in zip(individual_ids, num_serial)]
     
     else:
         raise ValueError(
@@ -92,7 +125,8 @@ def main(config_path='config/config.yaml'):
     m_z_columns = None
 
     # Calculate expected number of combinations
-    total_combinations = len(groups_info_list) * sum(g['n_per_group'] for g in groups_info_list) * len(rois_info_list)
+    # Note: This calculation is approximate now due to flexible serial IDs
+    # total_combinations = len(groups_info_list) * sum(g['n_per_group'] for g in groups_info_list) * len(rois_info_list)
     # logger.info(f"Attempting to aggregate {total_combinations} combinations (group*n*roi)")
 
     for group_dict in groups_info_list:
@@ -109,10 +143,10 @@ def main(config_path='config/config.yaml'):
             roi_name = roi_dict['name']
             
             # Process only actual serial section count per individual
-            for n, num_serial in individuals_info:
+            for n, serial_id_list in individuals_info:
                 serial_data_to_average = []
                 
-                for s in range(1, num_serial + 1):
+                for s in serial_id_list:
                     base_imzml_name = f"{group_name} {n}-{s} {roi_name}-total ion count"
                     mean_csv_path = os.path.join(output_dir, f"{base_imzml_name}_mean_intensities.csv")
                     

@@ -1,33 +1,63 @@
 #----------------------
+# System Configuration
+#----------------------
+# Internal use for Snakemake to identify the active config file
+__config_file__: "config/config.yaml"
+
+#----------------------
 # directory path
 #----------------------
-# Paths are relative to the project root where main.ipynb is executed.
+# Paths are relative to the project root where Snakemake is executed.
 data_dir: "data/processed"
 output_dir: "output/4_groups"
 
 #----------------------
 # Group parameters 
 #----------------------
-# 개체별로 다른 serial section 수를 지원합니다.
-# num_serial은 정수(모든 개체 동일) 또는 리스트(개체별로 다름)로 지정 가능합니다.
+# This section defines the experimental groups and their samples.
+#
+# Configuration Options:
+# 1. name: Group name (required)
+# 2. n_per_group: Number of individuals in the group (optional if individual_ids is provided)
+# 3. individual_ids: List of specific individual IDs (optional)
+#    - If omitted, IDs default to 1 to n_per_group (e.g., [1, 2, 3]).
+#    - If provided, n_per_group is automatically inferred from the list length.
+# 4. num_serial: Number of serial sections per individual (optional if serial_ids is provided)
+#    - Can be an integer (same for all individuals) or a list (per individual).
+# 5. serial_ids: Explicit list of serial section IDs per individual (optional)
+#    - Use this for non-sequential serial IDs (e.g., only section 2 exists: [2]).
+#    - Must be a list of lists, e.g., [[1, 2], [2], [1, 2]].
+#    - If provided, this OVERRIDES num_serial.
+
 group_info:
-  # 기존 방식: 모든 개체가 동일한 serial section 수
+  # Example 1: Standard configuration (Sequential IDs)
+  # - 3 individuals (IDs 1, 2, 3)
+  # - Same number of serial sections (2) for all
   - name: "control"
     n_per_group: 3
-    num_serial: 2  # 정수: mouse 1,2,3 모두 2개 section
-  
-  # 새로운 방식: 개체별로 다른 serial section 수
+    num_serial: 2  # All individuals have sections 1 and 2
+
+  # Example 2: Custom Individual IDs
+  # - 3 individuals with IDs 2, 4, 6
+  # - Different number of serial sections per individual
   - name: "saline"
-    n_per_group: 3
-    num_serial: [2, 1, 3]  # 리스트: mouse 1=2개, mouse 2=1개, mouse 3=3개
-  
+    individual_ids: [2, 4, 6]  # n_per_group is inferred as 3
+    num_serial: [2, 1, 3]      # ID 2: 2 sections, ID 4: 1 section, ID 6: 3 sections
+
+  # Example 3: Flexible Serial IDs (Non-sequential)
+  # - 3 individuals (IDs 1, 2, 3)
+  # - Specific serial IDs specified (e.g., missing section 1 for the second individual)
   - name: "glyoxylate"
     n_per_group: 3
-    num_serial: [2, 2, 1]  # mouse 1=2개, mouse 2=2개, mouse 3=1개
-  
+    serial_ids:
+      - [1, 2]    # Mouse 1: sections 1, 2
+      - [2]       # Mouse 2: section 2 only (section 1 missing)
+      - [1, 2, 3] # Mouse 3: sections 1, 2, 3
+
+  # Example 4: Mixed Configuration
   - name: "acetate"
-    n_per_group: 4
-    num_serial: [1, 2, 2, 3]  # mouse 1=1개, mouse 2=2개, mouse 3=2개, mouse 4=3개
+    individual_ids: [1, 3, 5, 7]
+    num_serial: [1, 2, 2, 3]
 
 #----------------------
 # ROI parameters
@@ -58,21 +88,6 @@ binning_settings:
     - mz: 102.055
       width: 0.003
       name: "Bin 2 (102)"
-    - mz: 130.9971
-      width: 0.00478
-      name: "Bin 3 (130)"
-    - mz: 132.0291
-      width: 0.003
-      name: "Bin 4 (132)"
-    - mz: 133.013
-      width: 0.003
-      name: "Bin 5 (133)"
-    - mz: 145.0601
-      width: 0.003
-      name: "Bin 6 (145)"
-    - mz: 146.0445
-      width: 0.003
-      name: "Bin 7 (146)"
 
 #----------------------
 # Outlier Detection Settings

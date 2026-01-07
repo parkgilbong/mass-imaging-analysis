@@ -35,7 +35,13 @@ def plot_single_bin(ax, data_bin, m_z_bin, stats_df_bin):
     ax.tick_params(axis='x', rotation=45)
     
     # Add pairwise comparison brackets for significant pairs
-    significant_pairs = stats_df_bin[stats_df_bin['significant'] == True]
+    # Robust check for significance (handles boolean True, string 'True', 'true', etc.)
+    if not stats_df_bin.empty and 'significant' in stats_df_bin.columns:
+        # Ensure boolean type for filtering
+        is_sig = stats_df_bin['significant'].astype(str).str.lower() == 'true'
+        significant_pairs = stats_df_bin[is_sig]
+    else:
+        significant_pairs = pd.DataFrame()
     
     if not significant_pairs.empty:
         # Get group names and their x-axis positions
@@ -87,7 +93,9 @@ def generate_single_plot(data_bin, roi, m_z_bin, stats_df_bin, group_color_map, 
 def generate_montage_plot(df_long_roi, roi, value_vars, df_posthoc_roi, group_color_map, groups, output_dir):
     logger.info(f"Generating montage plot: {roi}")
     num_bins = len(value_vars)
-    cols = int(np.ceil(np.sqrt(num_bins)))
+    # Limit columns to max 4 to prevent plots from becoming too small
+    cols = min(4, int(np.ceil(np.sqrt(num_bins))))
+    if cols < 1: cols = 1 # Safety check
     rows = int(np.ceil(num_bins / cols))
     
     fig = plt.figure(figsize=(cols * 5, rows * 4))
@@ -119,62 +127,262 @@ def generate_montage_plot(df_long_roi, roi, value_vars, df_posthoc_roi, group_co
     plt.close(fig)
 
 def generate_html_report(config, output_dir, df_main_stats, df_posthoc_stats, rois):
-    logger.info("Starting HTML report generation")
+    logger.info("Starting HTML report generation (Enhanced)")
     
     report_path = os.path.join(output_dir, 'analysis_report.html')
     
+    # Calculate summary stats
+    n_rois = len(rois)
+    n_significant = 0
+    if not df_main_stats.empty and 'significant' in df_main_stats.columns:
+        n_significant = df_main_stats['significant'].astype(str).str.lower().eq('true').sum()
+        
+    generated_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Extract config info for dashboard
+    groups = [g['name'] for g in config.get('group_info', [])]
+    group_str = ", ".join(groups)
+    
+    # Get m/z bins info (if available from stats or config)
+    mz_bins = []
+    if not df_main_stats.empty and 'm_z_bin' in df_main_stats.columns:
+        mz_bins = df_main_stats['m_z_bin'].unique().tolist()
+    n_bins = len(mz_bins)
+    
+    # Extract settings for Config tab
+    outlier_settings = config.get('outlier_detection', {})
+    stats_settings = config.get('statistics_settings', {})
+    binning_settings = config.get('binning_settings', {})
+
     html_content = f"""
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Mass Imaging Analysis Report</title>
+        
+        <!-- Bootstrap CSS -->
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <!-- DataTables CSS -->
+        <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+        
         <style>
-            body {{ font-family: Arial, sans-serif; margin: 20px; }}
-            h1, h2 {{ color: #333; }}
-            table {{ border-collapse: collapse; width: 100%; margin-bottom: 20px; }}
-            th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
-            th {{ background-color: #f2f2f2; }}
-            .plot-container {{ margin-bottom: 40px; }}
-            img {{ max-width: 100%; height: auto; border: 1px solid #ddd; }}
+            body {{ background-color: #f8f9fa; padding-top: 20px; }}
+            .container {{ max-width: 1400px; }}
+            .card {{ margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: none; }}
+            .card-header {{ background-color: #fff; border-bottom: 1px solid #eee; font-weight: bold; }}
+            .plot-img {{ width: 100%; height: auto; border-radius: 4px; transition: transform 0.2s; }}
+            .plot-img:hover {{ transform: scale(1.02); }}
+            .nav-tabs .nav-link {{ color: #495057; }}
+            .nav-tabs .nav-link.active {{ font-weight: bold; color: #0d6efd; }}
+            .summary-box {{ padding: 20px; background: white; border-radius: 8px; height: 100%; }}
+            .summary-title {{ font-size: 0.9rem; color: #6c757d; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }}
+            .summary-content {{ font-size: 1.1rem; font-weight: 500; color: #212529; }}
+            .summary-highlight {{ color: #0d6efd; font-weight: bold; }}
+            pre {{ background-color: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #e9ecef; }}
         </style>
     </head>
     <body>
-        <h1>Mass Imaging Analysis Report</h1>
-        <p>Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-        
-        <h2>Configuration</h2>
-        <ul>
-            <li>Output Directory: {output_dir}</li>
-            <li>ROIs: {', '.join(rois)}</li>
-        </ul>
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="display-5 fw-bold">Mass Imaging Analysis Report</h1>
+                    <p class="text-muted">Generated on {generated_time}</p>
+                </div>
+                <div>
+                    <span class="badge bg-primary rounded-pill">v1.1</span>
+                </div>
+            </div>
 
-        <h2>Statistical Results (Main)</h2>
-        <div style="overflow-x:auto;">
-            {df_main_stats.to_html(index=False, classes='table table-striped')}
-        </div>
+            <!-- Summary Dashboard -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="summary-box">
+                        <div class="summary-title">Groups ({len(groups)})</div>
+                        <div class="summary-content">{group_str}</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="summary-box">
+                        <div class="summary-title">ROIs ({n_rois})</div>
+                        <div class="summary-content">{", ".join(rois)}</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="summary-box">
+                        <div class="summary-title">m/z Bins ({n_bins})</div>
+                        <div class="summary-content">Analyzed {n_bins} mass bins</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="summary-box">
+                        <div class="summary-title">Significance</div>
+                        <div class="summary-content"><span class="summary-highlight">{n_significant}</span> significant tests found</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <ul class="nav nav-tabs mb-4" id="reportTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="plots-tab" data-bs-toggle="tab" data-bs-target="#plots" type="button" role="tab">Plots</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tables-tab" data-bs-toggle="tab" data-bs-target="#tables" type="button" role="tab">Statistical Tables</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="config-tab" data-bs-toggle="tab" data-bs-target="#config" type="button" role="tab">Configuration</button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="reportTabsContent">
+                
+                <!-- Plots Tab -->
+                <div class="tab-pane fade show active" id="plots" role="tabpanel">
+                    <div class="row">
     """
-    
-    if not df_posthoc_stats.empty:
-        html_content += f"""
-        <h2>Post-hoc Results</h2>
-        <div style="overflow-x:auto;">
-            {df_posthoc_stats.to_html(index=False, classes='table table-striped')}
-        </div>
-        """
-        
-    html_content += "<h2>Plots</h2>"
     
     for roi in rois:
         montage_path = f"plot_montage_roi_{roi}.png"
         if os.path.exists(os.path.join(output_dir, montage_path)):
             html_content += f"""
-            <div class="plot-container">
-                <h3>ROI: {roi}</h3>
-                <img src="{montage_path}" alt="Montage Plot for {roi}">
-            </div>
+                        <div class="col-md-12 mb-4">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span>ROI: {roi}</span>
+                                    <a href="{montage_path}" target="_blank" class="btn btn-sm btn-outline-primary">Open Full Size</a>
+                                </div>
+                                <div class="card-body">
+                                    <img src="{montage_path}" class="plot-img" alt="Montage Plot for {roi}">
+                                </div>
+                            </div>
+                        </div>
             """
             
     html_content += """
+                    </div>
+                </div>
+
+                <!-- Tables Tab -->
+                <div class="tab-pane fade" id="tables" role="tabpanel">
+                    <div class="card mb-4">
+                        <div class="card-header">Main Statistical Results</div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table id="mainTable" class="table table-striped table-hover" style="width:100%">
+                                    <thead>
+                                        <tr>
+    """
+    
+    if not df_main_stats.empty:
+        for col in df_main_stats.columns:
+            html_content += f"<th>{col}</th>"
+        html_content += "</tr></thead><tbody>"
+        
+        for _, row in df_main_stats.iterrows():
+            html_content += "<tr>"
+            for val in row:
+                # Format floats
+                if isinstance(val, (float, np.floating)):
+                    html_content += f"<td>{val:.4e}</td>"
+                else:
+                    html_content += f"<td>{val}</td>"
+            html_content += "</tr>"
+        html_content += "</tbody></table></div></div></div>"
+    else:
+        html_content += "<th>No Data</th></tr></thead><tbody></tbody></table></div></div></div>"
+
+    if not df_posthoc_stats.empty:
+        html_content += """
+                    <div class="card mb-4">
+                        <div class="card-header">Post-hoc Results</div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table id="posthocTable" class="table table-striped table-hover" style="width:100%">
+                                    <thead>
+                                        <tr>
+        """
+        for col in df_posthoc_stats.columns:
+            html_content += f"<th>{col}</th>"
+        html_content += "</tr></thead><tbody>"
+        
+        for _, row in df_posthoc_stats.iterrows():
+            html_content += "<tr>"
+            for val in row:
+                if isinstance(val, (float, np.floating)):
+                    html_content += f"<td>{val:.4e}</td>"
+                else:
+                    html_content += f"<td>{val}</td>"
+            html_content += "</tr>"
+        html_content += "</tbody></table></div></div></div>"
+
+    # Helper to format dict as string
+    def format_dict(d):
+        return "\n".join([f"{k}: {v}" for k, v in d.items()])
+
+    html_content += f"""
+                </div>
+
+                <!-- Config Tab -->
+                <div class="tab-pane fade" id="config" role="tabpanel">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">General Settings</div>
+                                <div class="card-body">
+                                    <strong>Output Directory:</strong> {output_dir}<br>
+                                    <strong>Binning Mode:</strong> {binning_settings.get('mode', 'N/A')}<br>
+                                    <strong>Binning File:</strong> {binning_settings.get('file_path', 'N/A')}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">Statistics Settings</div>
+                                <div class="card-body">
+                                    <pre>{format_dict(stats_settings)}</pre>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">Outlier Detection</div>
+                                <div class="card-body">
+                                    <pre>{format_dict(outlier_settings)}</pre>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">Groups & ROIs</div>
+                                <div class="card-body">
+                                    <strong>Groups:</strong> {group_str}<br>
+                                    <strong>ROIs:</strong> {", ".join(rois)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scripts -->
+        <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+        <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+        <script>
+            $(document).ready(function() {{
+                $('#mainTable').DataTable({{
+                    "pageLength": 10,
+                    "order": [[ 3, "asc" ]] 
+                }});
+                $('#posthocTable').DataTable({{
+                    "pageLength": 10
+                }});
+            }});
+        </script>
     </body>
     </html>
     """
@@ -223,6 +431,13 @@ def main(config_path='config/config.yaml'):
     df_posthoc_stats = pd.DataFrame()
     if os.path.exists(posthoc_stats_path):
         df_posthoc_stats = pd.read_csv(posthoc_stats_path)
+        # Ensure m_z_bin is string for consistent matching
+        if 'm_z_bin' in df_posthoc_stats.columns:
+            df_posthoc_stats['m_z_bin'] = df_posthoc_stats['m_z_bin'].astype(str)
+
+    # Ensure m_z_bin in df_long is also string
+    df_long['m_z_bin'] = df_long['m_z_bin'].astype(str)
+    value_vars = [str(v) for v in value_vars] # Update value_vars to strings too
 
     palette = sns.color_palette("Paired", n_colors=len(groups))
     group_color_map = dict(zip(groups, palette))

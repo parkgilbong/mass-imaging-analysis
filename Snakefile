@@ -23,19 +23,33 @@ def get_group_files(wildcards):
     files = []
     for group_dict in config["group_info"]:
         if group_dict["name"] == wildcards.group:
-            n_per_group = group_dict["n_per_group"]
-            num_serial = group_dict["num_serial"]
+            n_per_group = group_dict.get("n_per_group")
+            individual_ids = group_dict.get("individual_ids")
             
-            # Handle both integer and list formats
-            if isinstance(num_serial, int):
-                individuals_info = [(n, num_serial) for n in range(1, n_per_group + 1)]
-            else:  # list
-                individuals_info = [(n+1, serial_count) for n, serial_count in enumerate(num_serial)]
+            if individual_ids:
+                ids = individual_ids
+                if not n_per_group:
+                    n_per_group = len(ids)
+            elif n_per_group:
+                ids = range(1, n_per_group + 1)
+            else:
+                continue # Should be validated elsewhere
+
+            num_serial = group_dict.get("num_serial")
+            serial_ids = group_dict.get("serial_ids")
+            
+            individuals_info = []
+            if serial_ids:
+                individuals_info = list(zip(ids, serial_ids))
+            elif isinstance(num_serial, int):
+                individuals_info = [(n, list(range(1, num_serial + 1))) for n in ids]
+            elif isinstance(num_serial, list):
+                individuals_info = [(n, list(range(1, count + 1))) for n, count in zip(ids, num_serial)]
             
             for roi_dict in config["roi_info"]:
                 roi = roi_dict["name"]
-                for n, num_s in individuals_info:
-                    for s in range(1, num_s + 1):
+                for n, s_list in individuals_info:
+                    for s in s_list:
                         filename = f"{wildcards.group} {n}-{s} {roi}-total ion count.imzML"
                         files.append(os.path.join(DATA_DIR, filename))
     return files
@@ -46,19 +60,33 @@ def get_mean_intensity_files():
     files = []
     for group_dict in config["group_info"]:
         group = group_dict["name"]
-        n_per_group = group_dict["n_per_group"]
-        num_serial = group_dict["num_serial"]
+        n_per_group = group_dict.get("n_per_group")
+        individual_ids = group_dict.get("individual_ids")
         
-        # Handle both integer and list formats
-        if isinstance(num_serial, int):
-            individuals_info = [(n, num_serial) for n in range(1, n_per_group + 1)]
-        else:  # list
-            individuals_info = [(n+1, serial_count) for n, serial_count in enumerate(num_serial)]
+        if individual_ids:
+            ids = individual_ids
+            if not n_per_group:
+                n_per_group = len(ids)
+        elif n_per_group:
+            ids = range(1, n_per_group + 1)
+        else:
+            continue
+
+        num_serial = group_dict.get("num_serial")
+        serial_ids = group_dict.get("serial_ids")
+        
+        individuals_info = []
+        if serial_ids:
+            individuals_info = list(zip(ids, serial_ids))
+        elif isinstance(num_serial, int):
+            individuals_info = [(n, list(range(1, num_serial + 1))) for n in ids]
+        elif isinstance(num_serial, list):
+            individuals_info = [(n, list(range(1, count + 1))) for n, count in zip(ids, num_serial)]
         
         for roi_dict in config["roi_info"]:
             roi = roi_dict["name"]
-            for n, num_s in individuals_info:
-                for s in range(1, num_s + 1):
+            for n, s_list in individuals_info:
+                for s in s_list:
                     base_name = f"{group} {n}-{s} {roi}-total ion count"
                     files.append(os.path.join(OUTPUT_DIR, f"{base_name}_mean_intensities.csv"))
     return files
@@ -87,7 +115,7 @@ rule parse_data:
         os.path.join(LOG_DIR, "parse_data.log")
     shell:
         """
-        python src/parse_data.py --config {input.config_file} --log-file {log}
+        python src/parse_data.py --config "{input.config_file}" --log-file "{log}"
         """
 
 # Rule: Step 2 - Aggregate mean intensities across technical replicates
@@ -101,7 +129,7 @@ rule aggregate_data:
         os.path.join(LOG_DIR, "aggregate_data.log")
     shell:
         """
-        python src/aggregate_data.py --config {input.config_file} --log-file {log}
+        python src/aggregate_data.py --config "{input.config_file}" --log-file "{log}"
         """
 
 # Rule: Step 3a - Statistical analysis
@@ -116,7 +144,7 @@ rule analyze_stats:
         os.path.join(LOG_DIR, "analyze_stats.log")
     shell:
         """
-        python src/analyze_stats.py --config {input.config_file} --log-file {log}
+        python src/analyze_stats.py --config "{input.config_file}" --log-file "{log}"
         """
 
 # Rule: Step 3b - Visualization and Reporting
@@ -132,7 +160,7 @@ rule visualize_data:
         os.path.join(LOG_DIR, "visualize_data.log")
     shell:
         """
-        python src/visualize_data.py --config {input.config_file} --log-file {log}
+        python src/visualize_data.py --config "{input.config_file}" --log-file "{log}"
         """
 
 # Rule: Clean output directory (optional)
