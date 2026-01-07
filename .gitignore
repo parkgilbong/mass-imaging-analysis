@@ -49,3 +49,4 @@ dist/
 
 # User-specific config files (keep config.yaml as template)
 config/config_*.yaml
+*.html

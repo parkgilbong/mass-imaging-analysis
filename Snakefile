@@ -71,7 +71,9 @@ rule all:
         # Post-hoc results (if generated)
         os.path.join(OUTPUT_DIR, "statistical_results_posthoc.csv"),
         # Plots for each ROI
-        expand(os.path.join(OUTPUT_DIR, "plot_montage_roi_{roi}.png"), roi=ROIS)
+        expand(os.path.join(OUTPUT_DIR, "plot_montage_roi_{roi}.png"), roi=ROIS),
+        # HTML Report
+        os.path.join(OUTPUT_DIR, "analysis_report.html")
 
 # Rule: Step 1 - Parse imzML files and extract m/z bin intensities
 rule parse_data:
@@ -85,7 +87,7 @@ rule parse_data:
         os.path.join(LOG_DIR, "parse_data.log")
     shell:
         """
-        python src/main.py --config {input.config_file} --log-file {log}
+        python src/parse_data.py --config {input.config_file} --log-file {log}
         """
 
 # Rule: Step 2 - Aggregate mean intensities across technical replicates
@@ -99,23 +101,38 @@ rule aggregate_data:
         os.path.join(LOG_DIR, "aggregate_data.log")
     shell:
         """
-        python src/aggregate.py --config {input.config_file} --log-file {log}
+        python src/aggregate_data.py --config {input.config_file} --log-file {log}
         """
 
-# Rule: Step 3 - Statistical analysis and visualization
-rule analyze_data:
+# Rule: Step 3a - Statistical analysis
+rule analyze_stats:
     input:
         config_file = CONFIG_FILE,
         aggregated = os.path.join(OUTPUT_DIR, "aggregated_mean_intensities.csv")
     output:
         stats_main = os.path.join(OUTPUT_DIR, "statistical_results_main.csv"),
-        stats_posthoc = os.path.join(OUTPUT_DIR, "statistical_results_posthoc.csv"),
-        plots = expand(os.path.join(OUTPUT_DIR, "plot_montage_roi_{roi}.png"), roi=ROIS)
+        stats_posthoc = os.path.join(OUTPUT_DIR, "statistical_results_posthoc.csv")
     log:
-        os.path.join(LOG_DIR, "analyze_data.log")
+        os.path.join(LOG_DIR, "analyze_stats.log")
     shell:
         """
-        python src/analysis.py --config {input.config_file} --log-file {log}
+        python src/analyze_stats.py --config {input.config_file} --log-file {log}
+        """
+
+# Rule: Step 3b - Visualization and Reporting
+rule visualize_data:
+    input:
+        config_file = CONFIG_FILE,
+        stats_main = os.path.join(OUTPUT_DIR, "statistical_results_main.csv"),
+        stats_posthoc = os.path.join(OUTPUT_DIR, "statistical_results_posthoc.csv")
+    output:
+        plots = expand(os.path.join(OUTPUT_DIR, "plot_montage_roi_{roi}.png"), roi=ROIS),
+        report = os.path.join(OUTPUT_DIR, "analysis_report.html")
+    log:
+        os.path.join(LOG_DIR, "visualize_data.log")
+    shell:
+        """
+        python src/visualize_data.py --config {input.config_file} --log-file {log}
         """
 
 # Rule: Clean output directory (optional)

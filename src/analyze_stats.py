@@ -4,14 +4,8 @@ warnings.filterwarnings('ignore', category=FutureWarning, module='seaborn')
 
 import os
 import pandas as pd
-import yaml
 import itertools
 import numpy as np
-from datetime import datetime
-
-import seaborn as sns
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 from scipy.stats import ttest_ind, mannwhitneyu, f_oneway, kruskal
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
@@ -25,11 +19,9 @@ except ImportError:
     except ImportError:
         pass 
 
-CONFIG_FILE = 'config/config.yaml'
 # Logger will be initialized in main() with optional log file
 
 def run_statistics(data_long_roi, m_z_bin, roi, test_type, p_threshold):
-    # (로직 동일 - print 제거)
     data = data_long_roi[data_long_roi['m_z_bin'] == m_z_bin]
     groups = data['group'].unique()
     n_groups = len(groups)
@@ -129,61 +121,6 @@ def run_statistics(data_long_roi, m_z_bin, roi, test_type, p_threshold):
 
     return main_test_result, posthoc_results
 
-# Plot function with pairwise comparison brackets
-def plot_single_bin(ax, data_bin, m_z_bin, stats_df_bin):
-    """
-    Plot bar chart with individual data points and pairwise comparison brackets.
-    
-    Args:
-        ax: Matplotlib axis
-        data_bin: Data for this m/z bin
-        m_z_bin: m/z bin name
-        stats_df_bin: Post-hoc statistics for this bin (with 'group1', 'group2', 'significant' columns)
-    """
-    # Create bar plot with strip plot overlay
-    sns.barplot(data=data_bin, x='group', y='intensity', hue='group', palette='Paired', errorbar=None, ax=ax, legend=False)
-    sns.stripplot(data=data_bin, x='group', y='intensity', color='black', legend=False, s=5, ax=ax, jitter=False)
-    ax.set_title(f"m/z bin: {m_z_bin}", fontsize=10)
-    ax.set_xlabel('')
-    ax.set_ylabel('Intensity')
-    ax.tick_params(axis='x', rotation=45)
-    
-    # Add pairwise comparison brackets for significant pairs
-    significant_pairs = stats_df_bin[stats_df_bin['significant'] == True]
-    
-    if not significant_pairs.empty:
-        # Get group names and their x-axis positions
-        groups = data_bin['group'].unique()
-        group_to_x = {group: i for i, group in enumerate(groups)}
-        
-        # Calculate y-positions for brackets
-        max_intensity = data_bin['intensity'].max()
-        y_range = data_bin['intensity'].max() - data_bin['intensity'].min()
-        bracket_height = y_range * 0.05  # Height of each bracket level
-        base_y = max_intensity + y_range * 0.05  # Starting y position
-        
-        # Draw brackets for each significant pair
-        for idx, (_, row) in enumerate(significant_pairs.iterrows()):
-            group1 = row['group1']
-            group2 = row['group2']
-            
-            # Get x positions for the two groups
-            x1 = group_to_x.get(group1)
-            x2 = group_to_x.get(group2)
-            
-            if x1 is not None and x2 is not None:
-                # Calculate y position for this bracket (stack them vertically)
-                y = base_y + idx * bracket_height * 1.5
-                
-                # Draw horizontal lines and vertical connectors
-                ax.plot([x1, x1, x2, x2], [y, y + bracket_height*0.3, y + bracket_height*0.3, y], 
-                       'k-', linewidth=1.5)
-                
-                # Add asterisk in the middle
-                x_mid = (x1 + x2) / 2
-                ax.text(x_mid, y + bracket_height*0.5, '*', 
-                       ha='center', va='bottom', fontsize=14, color='red', fontweight='bold')
-
 def export_to_prism(df_long_roi, roi, config, m_z_bins, output_dir):
     try:
         logger.info(f"Generating Prism CSV: {roi}")
@@ -211,63 +148,8 @@ def export_to_prism(df_long_roi, roi, config, m_z_bins, output_dir):
     except Exception as e:
         logger.error(f"Prism conversion error: {e}", exc_info=True)
 
-def generate_single_plot(data_bin, roi, m_z_bin, stats_df_bin, group_color_map, groups, output_dir):
-    try:
-        fig_single, ax_single = plt.subplots(figsize=(6, 5))
-        plot_single_bin(ax_single, data_bin, m_z_bin, stats_df_bin)
-        handles = [plt.Rectangle((0,0),1,1, color=group_color_map[group]) for group in groups]
-        ax_single.legend(handles, groups, title="Groups", bbox_to_anchor=(1.05, 1), loc='upper left')
-        bin_filename_safe = str(m_z_bin).replace('.', '_')
-        single_plot_path = os.path.join(output_dir, f"plot_roi_{roi}_bin_{bin_filename_safe}.png")
-        fig_single.savefig(single_plot_path, dpi=150, bbox_inches='tight')
-        plt.close(fig_single) 
-    except Exception as e:
-        logger.error(f"Failed to save individual plot ({m_z_bin}): {e}")
-        plt.close(fig_single)
-
-def generate_montage_plot(df_long_roi, roi, value_vars, df_posthoc_roi, group_color_map, groups, output_dir):
-    logger.info(f"Generating montage plot: {roi}")
-    num_bins = len(value_vars)
-    cols = int(np.ceil(np.sqrt(num_bins)))
-    rows = int(np.ceil(num_bins / cols))
-    
-    fig = plt.figure(figsize=(cols * 5, rows * 4))
-    gs = gridspec.GridSpec(rows, cols + 1, figure=fig, width_ratios=[1] * cols + [0.5])
-    
-    plot_axes = []
-    for r in range(rows):
-        for c in range(cols):
-            if r * cols + c < num_bins:
-                plot_axes.append(fig.add_subplot(gs[r, c]))
-
-    for idx, (m_z_bin, ax) in enumerate(zip(value_vars, plot_axes)):
-        data_bin = df_long_roi[df_long_roi['m_z_bin'] == m_z_bin]
-        stats_df_bin = pd.DataFrame()
-        if not df_posthoc_roi.empty:
-            stats_df_bin = df_posthoc_roi[(df_posthoc_roi['m_z_bin'] == m_z_bin) & (df_posthoc_roi['roi'] == roi)]
-        plot_single_bin(ax, data_bin, m_z_bin, stats_df_bin)
-
-    legend_ax = fig.add_subplot(gs[:, -1])
-    legend_ax.axis('off')
-    handles = [plt.Rectangle((0,0),1,1, color=group_color_map[group]) for group in groups]
-    legend_ax.legend(handles, groups, title="Groups", loc='center')
-
-    fig.suptitle(f'MSI Intensity Analysis (ROI: {roi})', fontsize=16, y=1.02)
-    fig.tight_layout(rect=[0, 0, 0.95, 1])
-    
-    montage_plot_path = os.path.join(output_dir, f"plot_montage_roi_{roi}.png")
-    fig.savefig(montage_plot_path, dpi=150, bbox_inches='tight')
-    plt.close(fig)
-
-def generate_html_report(config, output_dir, df_main_stats, df_posthoc_stats):
-    logger.info("Starting HTML report generation")
-    # ... (HTML 생성 코드는 print 대신 logger를 쓰지 않아도 무방하나, 완료 메시지는 로깅)
-    # ... (중략) ... 
-    # 기존 코드 유지하되 마지막 print만 변경
-    logger.info(f"HTML report generation complete: {os.path.join(output_dir, 'analysis_report.html')}")
-
 def main(config_path='config/config.yaml'):
-    logger.info("========== Step 3: Starting statistical analysis and visualization ==========")
+    logger.info("========== Step 3a: Starting statistical analysis ==========")
     config = parsing.load_yaml(config_path)
     if config is None: return 
 
@@ -300,8 +182,6 @@ def main(config_path='config/config.yaml'):
     
     all_main_stats = []
     all_posthoc_stats = []
-    palette = sns.color_palette("Paired", n_colors=len(groups))
-    group_color_map = dict(zip(groups, palette))
     
     for roi in rois:
         logger.info(f"Analyzing ROI: {roi}")
@@ -314,17 +194,8 @@ def main(config_path='config/config.yaml'):
             main_result, posthoc_results = run_statistics(df_long_roi, m_z_bin, roi, test_type, p_threshold)
             all_main_stats.append(main_result)
             all_posthoc_stats.extend(posthoc_results) 
-
-        df_posthoc_roi = pd.DataFrame(all_posthoc_stats)
         
-        for idx, m_z_bin in enumerate(value_vars):
-            data_bin = df_long_roi[df_long_roi['m_z_bin'] == m_z_bin]
-            stats_df_bin = pd.DataFrame()
-            if not df_posthoc_roi.empty:
-                stats_df_bin = df_posthoc_roi[(df_posthoc_roi['m_z_bin'] == m_z_bin) & (df_posthoc_roi['roi'] == roi)]
-            generate_single_plot(data_bin, roi, m_z_bin, stats_df_bin, group_color_map, groups, output_dir)
-
-        generate_montage_plot(df_long_roi, roi, value_vars, df_posthoc_roi, group_color_map, groups, output_dir)
+        # Export to Prism format
         export_to_prism(df_long_roi, roi, config, value_vars, output_dir)
 
     try:
@@ -340,49 +211,33 @@ def main(config_path='config/config.yaml'):
         else:
             logger.info("No post-hoc results (no significance).")
 
-        # HTML 보고서 함수 호출 (이전에 정의된 함수 사용)
-        # generate_html_report(...) -> 위 코드에 포함되어야 함. 
-        # 여기서는 생략했으나 실제 파일에는 포함되어야 함.
-
     except Exception as e:
         logger.error(f"Error saving results: {e}", exc_info=True)
 
-    logger.info("========== Step 3 complete ==========")
+    logger.info("========== Step 3a complete ==========")
 
 if __name__ == '__main__':
     import argparse
     
     parser = argparse.ArgumentParser(
-        description='Step 3: Perform statistical analysis and generate visualizations',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog='''
-Examples:
-  # Run with default config
-  python src/analysis.py
-  
-  # Run with custom config
-  python src/analysis.py --config config/custom_config.yaml
-  
-  # Run with Snakemake (custom log file)
-  python src/analysis.py --config config/config.yaml --log-file output/logs/analyze_data.log
-        '''
+        description='Step 3a: Perform statistical analysis',
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument(
         '--config',
         type=str,
         default='config/config.yaml',
-        help='Path to config YAML file (default: config/config.yaml)'
+        help='Path to config YAML file'
     )
     parser.add_argument(
         '--log-file',
         type=str,
         default=None,
-        help='Path to log file (for Snakemake integration)'
+        help='Path to log file'
     )
     
     args = parser.parse_args()
     
-    # Initialize logger with custom log file if provided
     global logger
     logger = get_logger(__name__, log_file=args.log_file)
     
