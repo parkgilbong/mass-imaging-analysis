@@ -109,6 +109,17 @@ statistics_settings:
   # Statistical significance threshold (p-value)
   p_value_threshold: 0.05
 
+  # Multiple comparison correction method (for multiple m/z bins)
+  # 'fdr_bh': Benjamini-Hochberg FDR control (recommended, default)
+  #           - Less conservative, controls false discovery rate
+  #           - Standard for metabolomics/proteomics data
+  # 'bonferroni': Bonferroni correction (very conservative)
+  #               - Controls family-wise error rate
+  #               - Use when false positives are critical
+  # 'none': No correction (not recommended for multiple bins)
+  #         - Use only for single hypothesis testing
+  multiple_comparison_correction: "fdr_bh"
+
 #----------------------
 # Report settings
 #----------------------

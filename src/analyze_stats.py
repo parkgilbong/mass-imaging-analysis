@@ -8,6 +8,7 @@ import itertools
 import numpy as np
 from scipy.stats import ttest_ind, mannwhitneyu, f_oneway, kruskal
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
+from statsmodels.stats.multitest import multipletests
 
 try:
     import parsing
@@ -121,6 +122,56 @@ def run_statistics(data_long_roi, m_z_bin, roi, test_type, p_threshold):
 
     return main_test_result, posthoc_results
 
+def apply_correction(stats_results, method, p_threshold):
+    """
+    Apply multiple comparison correction to main statistical results.
+    
+    Args:
+        stats_results: List of main test result dictionaries
+        method: 'fdr_bh', 'bonferroni', or 'none'
+        p_threshold: Original p-value threshold
+    
+    Returns:
+        List of corrected result dictionaries with 'p_adj' and updated 'significant'
+    """
+    if not stats_results or len(stats_results) == 0:
+        return stats_results
+    
+    if method == 'none':
+        # No correction - add p_adj = p_value
+        for result in stats_results:
+            result['p_adj'] = result['p_value']
+        return stats_results
+    
+    # Extract p-values
+    p_values = [r['p_value'] for r in stats_results]
+    
+    try:
+        if method == 'fdr_bh':
+            # Benjamini-Hochberg FDR
+            reject, p_adj, _, _ = multipletests(p_values, alpha=p_threshold, method='fdr_bh')
+        elif method == 'bonferroni':
+            # Bonferroni correction
+            reject, p_adj, _, _ = multipletests(p_values, alpha=p_threshold, method='bonferroni')
+        else:
+            logger.warning(f"Unknown correction method '{method}', using 'none'")
+            for result in stats_results:
+                result['p_adj'] = result['p_value']
+            return stats_results
+        
+        # Update results with adjusted p-values
+        for i, result in enumerate(stats_results):
+            result['p_adj'] = p_adj[i]
+            result['significant'] = reject[i]
+        
+    except Exception as e:
+        logger.error(f"Error applying correction: {e}")
+        # Fallback: no correction
+        for result in stats_results:
+            result['p_adj'] = result['p_value']
+    
+    return stats_results
+
 def export_to_prism(df_long_roi, roi, config, m_z_bins, output_dir):
     try:
         logger.info(f"Generating Prism CSV: {roi}")
@@ -159,7 +210,10 @@ def main(config_path='config/config.yaml'):
         stats_settings = config['statistics_settings']
         test_type = stats_settings['test_type']
         p_threshold = stats_settings['p_value_threshold']
+        correction_method = stats_settings.get('multiple_comparison_correction', 'fdr_bh')
         groups = [g['name'] for g in config['group_info']]
+        
+        logger.info(f"Multiple comparison correction: {correction_method}")
     except KeyError as e:
         logger.error(f"config.yaml key error: {e}")
         return
@@ -190,10 +244,22 @@ def main(config_path='config/config.yaml'):
             logger.warning(f"No data: {roi}")
             continue
         
+        # Collect results for this ROI
+        roi_main_stats = []
+        roi_posthoc_stats = []
+        
         for m_z_bin in value_vars: 
             main_result, posthoc_results = run_statistics(df_long_roi, m_z_bin, roi, test_type, p_threshold)
-            all_main_stats.append(main_result)
-            all_posthoc_stats.extend(posthoc_results) 
+            roi_main_stats.append(main_result)
+            roi_posthoc_stats.extend(posthoc_results)
+        
+        # Apply multiple comparison correction to main tests for this ROI
+        roi_main_stats = apply_correction(roi_main_stats, correction_method, p_threshold)
+        logger.info(f"Applied {correction_method} correction to {len(roi_main_stats)} tests for ROI: {roi}")
+        
+        # Add to overall results
+        all_main_stats.extend(roi_main_stats)
+        all_posthoc_stats.extend(roi_posthoc_stats)
         
         # Export to Prism format
         export_to_prism(df_long_roi, roi, config, value_vars, output_dir)
