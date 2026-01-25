@@ -172,6 +172,182 @@ def apply_correction(stats_results, method, p_threshold):
     
     return stats_results
 
+def get_control_group(config):
+    """
+    Get the control/reference group name from config.
+    
+    Args:
+        config: Configuration dictionary
+    
+    Returns:
+        str: Name of control group
+    """
+    groups_info = config['group_info']
+    
+    # Find group with is_control: true
+    control_groups = [g['name'] for g in groups_info if g.get('is_control', False)]
+    
+    if len(control_groups) == 0:
+        # Default to first group if no control specified
+        logger.warning("No control group specified (is_control: true), using first group as control")
+        return groups_info[0]['name']
+    elif len(control_groups) > 1:
+        logger.warning(f"Multiple control groups specified: {control_groups}, using first one")
+        return control_groups[0]
+    else:
+        return control_groups[0]
+
+def create_integrated_results(df_agg, df_stats, config, roi):
+    """
+    Create DESeq2-style integrated results table combining:
+    - Individual sample intensities
+    - Group statistics (mean, SD)
+    - Fold changes (log2 and raw)
+    - Statistical test results
+    
+    Args:
+        df_agg: Aggregated mean intensities DataFrame (wide format)
+        df_stats: Statistical results DataFrame
+        config: Configuration dictionary
+        roi: ROI name
+    
+    Returns:
+        DataFrame with integrated results
+    """
+    try:
+        # Get control group
+        control_group = get_control_group(config)
+        groups = [g['name'] for g in config['group_info']]
+        
+        logger.info(f"Creating integrated results for ROI: {roi}, control group: {control_group}")
+        
+        # Filter for this ROI
+        df_agg_roi = df_agg[df_agg['roi'] == roi].copy()
+        df_stats_roi = df_stats[df_stats['roi'] == roi].copy()
+        
+        if df_agg_roi.empty:
+            logger.warning(f"No aggregated data for ROI: {roi}")
+            return pd.DataFrame()
+        
+        # Get m/z bins
+        id_vars = ['group', 'n', 'roi']
+        m_z_bins = [col for col in df_agg_roi.columns if col not in id_vars]
+        
+        # Convert to long format for calculations
+        df_long = df_agg_roi.melt(
+            id_vars=id_vars,
+            value_vars=m_z_bins,
+            var_name='m_z_bin',
+            value_name='intensity'
+        )
+        
+        # Calculate group statistics
+        group_stats_list = []
+        for m_z_bin in m_z_bins:
+            df_bin = df_long[df_long['m_z_bin'] == m_z_bin]
+            
+            # Overall mean
+            base_mean = df_bin['intensity'].mean()
+            
+            # Per-group statistics
+            stats_row = {
+                'roi': roi,
+                'm_z_bin': m_z_bin,
+                'baseMean': base_mean
+            }
+            
+            group_means = {}
+            for group in groups:
+                df_group = df_bin[df_bin['group'] == group]
+                group_mean = df_group['intensity'].mean()
+                group_sd = df_group['intensity'].std()
+                
+                stats_row[f'{group}_mean'] = group_mean
+                stats_row[f'{group}_sd'] = group_sd
+                group_means[group] = group_mean
+            
+            # Calculate fold changes vs control
+            control_mean = group_means.get(control_group, 1.0)
+            if control_mean == 0:
+                control_mean = 1e-10  # Avoid division by zero
+            
+            # Calculate fold changes for each non-control group
+            for group in groups:
+                if group != control_group:
+                    experimental_mean = group_means[group]
+                    fold_change = experimental_mean / control_mean
+                    log2_fc = np.log2(fold_change) if fold_change > 0 else np.nan
+                    
+                    stats_row[f'log2FC_{group}_vs_{control_group}'] = log2_fc
+                    stats_row[f'FC_{group}_vs_{control_group}'] = fold_change
+            
+            group_stats_list.append(stats_row)
+        
+        df_group_stats = pd.DataFrame(group_stats_list)
+        
+        # Merge with statistical results
+        df_integrated = df_group_stats.merge(
+            df_stats_roi[['m_z_bin', 'test_name', 'p_value', 'p_adj', 'significant']],
+            on='m_z_bin',
+            how='left'
+        )
+        
+        # Add individual sample data
+        for group in groups:
+            df_group = df_agg_roi[df_agg_roi['group'] == group].copy()
+            n_per_group = df_group['n'].max()
+            
+            for n in range(1, int(n_per_group) + 1):
+                df_sample = df_group[df_group['n'] == n]
+                if not df_sample.empty:
+                    # Get sample values for each m/z bin
+                    sample_col_name = f'{group}_{n}'
+                    sample_values = df_sample[m_z_bins].iloc[0].to_dict()
+                    
+                    # Add to integrated dataframe
+                    for m_z_bin in m_z_bins:
+                        mask = df_integrated['m_z_bin'] == m_z_bin
+                        df_integrated.loc[mask, sample_col_name] = sample_values.get(m_z_bin, np.nan)
+        
+        # Reorder columns for better readability
+        # Order: identifiers, summary stats, fold changes, statistics, samples
+        base_cols = ['roi', 'm_z_bin', 'baseMean']
+        group_mean_cols = [f'{g}_mean' for g in groups]
+        group_sd_cols = [f'{g}_sd' for g in groups]
+        
+        fc_cols = []
+        for group in groups:
+            if group != control_group:
+                fc_cols.append(f'log2FC_{group}_vs_{control_group}')
+                fc_cols.append(f'FC_{group}_vs_{control_group}')
+        
+        stat_cols = ['pvalue', 'p_adj', 'significant', 'test_name']
+        # Rename for consistency
+        df_integrated = df_integrated.rename(columns={'p_value': 'pvalue'})
+        
+        sample_cols = []
+        for group in groups:
+            n_per_group = len(df_agg_roi[df_agg_roi['group'] == group])
+            for n in range(1, n_per_group + 1):
+                col_name = f'{group}_{n}'
+                if col_name in df_integrated.columns:
+                    sample_cols.append(col_name)
+        
+        # Combine in desired order
+        ordered_cols = base_cols + group_mean_cols + group_sd_cols + fc_cols + stat_cols + sample_cols
+        
+        # Only include columns that exist
+        ordered_cols = [col for col in ordered_cols if col in df_integrated.columns]
+        df_integrated = df_integrated[ordered_cols]
+        
+        logger.info(f"Created integrated results: {len(df_integrated)} rows, {len(df_integrated.columns)} columns")
+        
+        return df_integrated
+        
+    except Exception as e:
+        logger.error(f"Error creating integrated results for ROI {roi}: {e}", exc_info=True)
+        return pd.DataFrame()
+
 def export_to_prism(df_long_roi, roi, config, m_z_bins, output_dir):
     try:
         logger.info(f"Generating Prism CSV: {roi}")
@@ -263,6 +439,37 @@ def main(config_path='config/config.yaml'):
         
         # Export to Prism format
         export_to_prism(df_long_roi, roi, config, value_vars, output_dir)
+    
+    # Create integrated results tables
+    logger.info("========== Creating integrated results tables ==========")
+    all_integrated_results = []
+    
+    # Convert main stats list to DataFrame for merging
+    df_main_stats = pd.DataFrame(all_main_stats)
+    
+    for roi in rois:
+        logger.info(f"Creating integrated results for ROI: {roi}")
+        
+        # Create integrated results for this ROI
+        df_integrated_roi = create_integrated_results(
+            df_agg, df_main_stats, config, roi
+        )
+        
+        if not df_integrated_roi.empty:
+            # Save per-ROI integrated results
+            integrated_roi_path = os.path.join(output_dir, f"integrated_results_{roi}.csv")
+            df_integrated_roi.to_csv(integrated_roi_path, index=False, float_format='%.4f')
+            logger.info(f"Saved integrated results for {roi}: {integrated_roi_path}")
+            
+            all_integrated_results.append(df_integrated_roi)
+    
+    # Save combined integrated results
+    if all_integrated_results:
+        df_integrated_all = pd.concat(all_integrated_results, ignore_index=True)
+        integrated_all_path = os.path.join(output_dir, "integrated_results_all.csv")
+        df_integrated_all.to_csv(integrated_all_path, index=False, float_format='%.4f')
+        logger.info(f"Saved combined integrated results: {integrated_all_path}")
+        logger.info(f"Total integrated results: {len(df_integrated_all)} rows across {len(rois)} ROIs")
 
     try:
         df_main_stats = pd.DataFrame(all_main_stats)
