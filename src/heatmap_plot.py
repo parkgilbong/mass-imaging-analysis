@@ -195,100 +195,21 @@ class HeatmapPlotter:
         Returns:
             matplotlib Figure object
         """
-        # Perform clustering if requested
-        if row_cluster or col_cluster:
-            self.cluster_data(
-                cluster_rows=row_cluster,
-                cluster_cols=col_cluster,
-                method=cluster_method,
-                metric=cluster_metric
-            )
-        
         # Get data to plot
         data = self.normalized_data if self.normalized_data is not None else self.data
         
-        # Reorder data based on clustering
-        if row_cluster and self.row_linkage is not None:
-            row_order = leaves_list(self.row_linkage)
-            data = data.iloc[row_order, :]
-        
-        if col_cluster and self.col_linkage is not None:
-            col_order = leaves_list(self.col_linkage)
-            data = data.iloc[:, col_order]
-        
-        # Create figure with subplots for dendrograms and heatmap
-        fig = plt.figure(figsize=figsize)
-        
-        # Calculate subplot positions
-        dendrogram_height = dendrogram_ratio if show_row_dendrogram else 0
-        dendrogram_width = dendrogram_ratio if show_col_dendrogram else 0
-        
-        # Create grid spec
-        from matplotlib.gridspec import GridSpec
-        
-        if show_row_dendrogram and show_col_dendrogram:
-            gs = GridSpec(
-                2, 2,
-                width_ratios=[dendrogram_width, 1],
-                height_ratios=[dendrogram_height, 1],
-                hspace=0.02, wspace=0.02
-            )
-            ax_col_dendr = fig.add_subplot(gs[0, 1])
-            ax_row_dendr = fig.add_subplot(gs[1, 0])
-            ax_heatmap = fig.add_subplot(gs[1, 1])
-        elif show_row_dendrogram:
-            gs = GridSpec(
-                1, 2,
-                width_ratios=[dendrogram_width, 1],
-                wspace=0.02
-            )
-            ax_row_dendr = fig.add_subplot(gs[0, 0])
-            ax_heatmap = fig.add_subplot(gs[0, 1])
-            ax_col_dendr = None
-        elif show_col_dendrogram:
-            gs = GridSpec(
-                2, 1,
-                height_ratios=[dendrogram_height, 1],
-                hspace=0.02
-            )
-            ax_col_dendr = fig.add_subplot(gs[0, 0])
-            ax_heatmap = fig.add_subplot(gs[1, 0])
-            ax_row_dendr = None
-        else:
-            ax_heatmap = fig.add_subplot(111)
-            ax_row_dendr = None
-            ax_col_dendr = None
-        
-        # Plot column dendrogram
-        if show_col_dendrogram and col_cluster and self.col_linkage is not None:
-            dendrogram(
-                self.col_linkage,
-                ax=ax_col_dendr,
-                orientation='top',
-                no_labels=True,
-                color_threshold=0
-            )
-            ax_col_dendr.axis('off')
-        
-        # Plot row dendrogram
-        if show_row_dendrogram and row_cluster and self.row_linkage is not None:
-            dendrogram(
-                self.row_linkage,
-                ax=ax_row_dendr,
-                orientation='left',
-                no_labels=True,
-                color_threshold=0
-            )
-            ax_row_dendr.axis('off')
-        
-        # Plot heatmap
-        sns.heatmap(
+        # Use seaborn's clustermap for proper dendrogram alignment
+        g = sns.clustermap(
             data,
-            ax=ax_heatmap,
+            figsize=figsize,
             cmap=cmap,
             center=center,
             vmin=vmin,
             vmax=vmax,
+            row_cluster=row_cluster,
+            col_cluster=col_cluster,
+            method=cluster_method,
+            metric=cluster_metric,
             annot=annot,
             fmt=fmt,
             linewidths=linewidths,
@@ -296,24 +217,38 @@ class HeatmapPlotter:
             xticklabels=xticklabels,
             yticklabels=yticklabels,
             cbar_kws={'label': cbar_label},
-            cbar_ax=None  # Let seaborn handle colorbar
+            dendrogram_ratio=dendrogram_ratio,
+            cbar_pos=(0.02, 0.84, 0.025, 0.12)  # (left, bottom, width, height) - smaller and moved up
         )
         
+        # Store linkages for later use
+        if row_cluster:
+            self.row_linkage = g.dendrogram_row.linkage
+        if col_cluster:
+            self.col_linkage = g.dendrogram_col.linkage
+        
+        # Hide dendrograms if requested
+        if not show_row_dendrogram:
+            g.ax_row_dendrogram.set_visible(False)
+        if not show_col_dendrogram:
+            g.ax_col_dendrogram.set_visible(False)
+        
         # Set labels
-        ax_heatmap.set_xlabel(xlabel, fontweight='bold', fontsize=12)
-        ax_heatmap.set_ylabel(ylabel, fontweight='bold', fontsize=12)
+        g.ax_heatmap.set_xlabel(xlabel, fontweight='bold', fontsize=12)
+        g.ax_heatmap.set_ylabel(ylabel, fontweight='bold', fontsize=12)
         
         # Rotate labels
-        ax_heatmap.set_xticklabels(ax_heatmap.get_xticklabels(), rotation=45, ha='right')
-        ax_heatmap.set_yticklabels(ax_heatmap.get_yticklabels(), rotation=0)
+        plt.setp(g.ax_heatmap.get_xticklabels(), rotation=45, ha='right')
+        plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)
         
-        # Set title
+        # Set title with adjusted position to avoid dendrogram overlap
         if title:
-            fig.suptitle(title, fontsize=16, fontweight='bold', y=0.98)
+            # Adjust y position based on whether column dendrogram is shown
+            # Higher y value = further up (away from dendrogram)
+            title_y = 1.02 if show_col_dendrogram else 0.98
+            g.fig.suptitle(title, fontsize=16, fontweight='bold', y=title_y)
         
-        plt.tight_layout()
-        
-        return fig
+        return g.fig
     
     def get_clustered_data(self) -> pd.DataFrame:
         """
