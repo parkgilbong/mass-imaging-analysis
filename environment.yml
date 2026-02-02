@@ -20,6 +20,7 @@ dependencies:
   - scipy       # For statistical analysis
   - statsmodels # For statistical analysis
   - scikit-learn # For dimensionality reduction (PCA, t-SNE) and data preprocessing
+  - umap-learn  # For UMAP dimensionality reduction
   
   # Plotting
   - seaborn     
@@ -28,6 +29,7 @@ dependencies:
   # Notebook
   - jupyterlab  # Essential for running main.ipynb
   - notebook
+  - ipywidgets  # For interactive progress bars in Jupyter (UMAP, tqdm)
   
   # Workflow management
   - snakemake   # For running Snakefile pipeline

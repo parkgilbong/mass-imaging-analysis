@@ -84,15 +84,27 @@ Create a conda environment containing the required Python packages for the proje
    - pandas, numpy (data processing)
    - pyyaml (configuration file parsing)
    - scipy, statsmodels (statistical analysis)
+   - scikit-learn (dimensionality reduction: PCA, t-SNE)
    - seaborn, matplotlib (visualization)
-   - jupyterlab (notebook execution)
+   - jupyterlab, ipywidgets (notebook execution and interactive widgets)
+   - umap-learn (UMAP dimensionality reduction)
 
 3. **Activate environment:**
    ```bash
    conda activate mass-imaging-analysis
    ```
 
-4. **Verify installation:**
+4. **Jupyter Lab extension setup (optional):**
+   
+   To enable interactive progress bars in Jupyter Lab, run:
+   ```bash
+   # Enable ipywidgets extension (automatic in Jupyter Lab 3.0+)
+   jupyter labextension install @jupyter-widgets/jupyterlab-manager
+   ```
+   
+   > **Note**: In Jupyter Lab 3.0 and above, ipywidgets are automatically enabled, so you can skip this step.
+
+5. **Verify installation:**
    ```bash
    python --version
    conda list

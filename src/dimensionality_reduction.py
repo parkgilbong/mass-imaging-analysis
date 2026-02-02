@@ -158,7 +158,7 @@ class DimensionalityReducer:
         n_components: int = 2,
         perplexity: float = 30.0,
         learning_rate: Union[float, str] = 'auto',
-        n_iter: int = 1000,
+        max_iter: int = 1000,
         random_state: int = 42
     ) -> pd.DataFrame:
         """
@@ -168,7 +168,7 @@ class DimensionalityReducer:
             n_components: Number of dimensions (usually 2)
             perplexity: Perplexity parameter (5-50 recommended)
             learning_rate: Learning rate ('auto' or float, 10-1000)
-            n_iter: Number of iterations (250-1000 recommended)
+            max_iter: Maximum number of iterations (250-1000 recommended)
             random_state: Random seed for reproducibility
         
         Returns:
@@ -181,7 +181,7 @@ class DimensionalityReducer:
             n_components=n_components,
             perplexity=perplexity,
             learning_rate=learning_rate,
-            n_iter=n_iter,
+            max_iter=max_iter,
             random_state=random_state
         )
         reduced = tsne.fit_transform(data)

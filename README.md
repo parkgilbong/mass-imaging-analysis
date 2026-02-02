@@ -50,6 +50,16 @@ MSI (Mass Spectrometry Imaging) 데이터를 처리하고 통계 분석을 수�
    conda activate mass-imaging-analysis
    ```
 
+4. **Jupyter Lab 확장 설정 (선택사항):**
+   
+   Jupyter Lab에서 진행 표시줄을 사용하려면 다음 명령어를 실행하세요:
+   ```bash
+   # ipywidgets 확장 활성화 (Jupyter Lab 3.0 이상에서는 자동)
+   jupyter labextension install @jupyter-widgets/jupyterlab-manager
+   ```
+   
+   > **참고**: Jupyter Lab 3.0 이상 버전에서는 ipywidgets가 자동으로 활성화되므로 이 단계를 건너뛸 수 있습니다.
+
 ---
 
 ## 사용 방법 (Snakemake, 권장)

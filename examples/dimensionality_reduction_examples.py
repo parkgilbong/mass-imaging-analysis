@@ -82,7 +82,7 @@ def main():
         reducer_tsne.apply_tsne(
             n_components=2,
             perplexity=perplexity,
-            n_iter=1000,
+            max_iter=1000,
             random_state=42
         )
         
@@ -154,7 +154,7 @@ def main():
     
     algorithms = [
         ('PCA', lambda r: r.apply_pca(n_components=2, random_state=42)),
-        ('t-SNE', lambda r: r.apply_tsne(perplexity=30, n_iter=1000, random_state=42)),
+        ('t-SNE', lambda r: r.apply_tsne(perplexity=30, max_iter=1000, random_state=42)),
         ('UMAP', lambda r: r.apply_umap(n_neighbors=15, min_dist=0.1, random_state=42))
     ]
     
