@@ -19,6 +19,7 @@ dependencies:
   # Statistics
   - scipy       # For statistical analysis
   - statsmodels # For statistical analysis
+  - scikit-learn # For dimensionality reduction (PCA, t-SNE) and data preprocessing
   
   # Plotting
   - seaborn     
